@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% block title %}สั่งออเดอร์ - สติๆ{% endblock %}
+{% block content %}
+<div class="min-h-screen flex flex-col bg-gray-100">
+    <!-- Top bar -->
+    <div class="bg-gray-900 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-30">
+        <div class="flex items-center gap-3">
+            <a href="/admin/orders" class="text-gray-400 hover:text-white text-sm">← ออเดอร์</a>
+            <h1 class="font-bold text-lg">🛒 สั่งออเดอร์</h1>
+        </div>
+        <div class="flex items-center gap-3">
+            <select id="table-select" class="bg-gray-800 border border-gray-600 rounded-lg px-3 py-1.5 text-sm">
+                <option value="">-- เลือกโต๊ะ --</option>
+                {% for t in tables %}
+                <option value="{{ t.id }}">{{ t.name }}</option>
+                {% endfor %}
+            </select>
+            <button onclick="toggleCart()" class="relative bg-orange-500 hover:bg-orange-600 px-4 py-1.5 rounded-lg text-sm font-medium">
+                ตะกร้า
+                <span id="cart-count" class="absolute -top-2 -right-2 bg-red-500 text-xs w-5 h-5 rounded-full flex items-center justify-center hidden">0</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Main area -->
+        <div class="flex-1 p-4 overflow-y-auto">
+            <!-- Category grid (level 1) -->
+            <div id="view-categories">
+                <h2 class="text-gray-600 font-medium mb-3">เลือกประเภท</h2>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {% for cat in categories %}
+                    <button onclick="openCategory({{ cat.id }}, '{{ cat.name }}')"
+                            class="bg-white rounded-2xl shadow-sm border hover:border-orange-400 hover:shadow-md transition p-4 flex flex-col items-center gap-3">
+                        <div class="w-20 h-20 rounded-2xl bg-orange-50 flex items-center justify-center text-4xl overflow-hidden">
+                            {% if cat.image_url %}
+                            <img src="{{ cat.image_url }}" class="w-full h-full object-cover" alt="">
+                            {% elif 'เครื่องดื่ม' in cat.name %}🥤
+                            {% elif 'หวาน' in cat.name %}🍦
+                            {% elif 'จานหลัก' in cat.name or 'อาหาร' in cat.name %}🍛
+                            {% else %}🍽️{% endif %}
+                        </div>
+                        <span class="font-semibold text-gray-800 text-center">{{ cat.name }}</span>
+                    </button>
+                    {% endfor %}
+                    <!-- ทั้งหมด -->
+                    <button onclick="openCategory(0, 'ทั้งหมด')"
+                            class="bg-white rounded-2xl shadow-sm border hover:border-orange-400 hover:shadow-md transition p-4 flex flex-col items-center gap-3">
+                        <div class="w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center text-4xl">📋</div>
+                        <span class="font-semibold text-gray-800 text-center">ทั้งหมด</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Items grid (level 2) -->
+            <div id="view-items" class="hidden">
+                <div class="flex items-center gap-3 mb-4">
+                    <button onclick="backToCategories()" class="text-orange-600 hover:underline text-sm font-medium">← กลับ</button>
+                    <h2 id="cat-title" class="font-bold text-xl text-gray-800"></h2>
+                </div>
+                <div id="items-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    <!-- filled by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cart drawer -->
+    <div id="cart-drawer" class="fixed inset-y-0 right-0 w-full max-w-md bg-white shadow-2xl z-40 transform translate-x-full transition-transform duration-300 flex flex-col">
+        <div class="p-4 border-b flex items-center justify-between">
+            <h2 class="font-bold text-lg">🛒 ตะกร้า</h2>
+            <button onclick="toggleCart()" class="text-2xl text-gray-400">&times;</button>
+        </div>
+        <div id="cart-items" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+        <div class="p-4 border-t space-y-3">
+            <textarea id="order-note" class="w-full border rounded-lg p-2 text-sm" rows="2" placeholder="หมายเหตุออเดอร์"></textarea>
+            <div class="flex justify-between items-center">
+                <span class="font-medium">ยอดรวม</span>
+                <span id="cart-total" class="text-xl font-bold text-orange-600">฿0</span>
+            </div>
+            <button onclick="submitOrder()" id="btn-submit" disabled
+                    class="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold py-3 rounded-xl">
+                ยืนยันสั่งออเดอร์
+            </button>
+        </div>
+    </div>
+    <div id="cart-overlay" onclick="toggleCart()" class="fixed inset-0 bg-black/30 z-30 hidden"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+fetch('/api/me').then(r=>r.json()).then(me=>{
+  if(!me.is_admin) document.querySelectorAll('[data-admin-only]').forEach(el=>el.classList.add('hidden'));
+}).catch(()=>{});
+</script>
+
+<script>
+const allItems = [
+{% for item in items %}
+  {id: {{ item.id }}, name: {{ item.name|tojson }}, price: {{ item.price }}, cat: {{ item.category_id or 0 }},
+   desc: {{ (item.description or '')|tojson }},
+   image: {{ (item.image_url or '')|tojson }},
+   emoji: "{% if item.category and 'เครื่องดื่ม' in item.category.name %}🥤{% elif item.category and 'หวาน' in item.category.name %}🍦{% else %}🍛{% endif %}"},
+{% endfor %}
+];
+
+let cart = {}; // id -> {qty, note}
+
+function openCategory(catId, catName) {
+    document.getElementById('view-categories').classList.add('hidden');
+    document.getElementById('view-items').classList.remove('hidden');
+    document.getElementById('cat-title').textContent = catName;
+    const list = catId === 0 ? allItems : allItems.filter(i => i.cat === catId);
+    const grid = document.getElementById('items-grid');
+    if (!list.length) {
+        grid.innerHTML = '<p class="text-gray-400 col-span-full">ไม่มีสินค้าในหมวดนี้</p>';
+        return;
+    }
+    grid.innerHTML = list.map(item => `
+        <div class="bg-white rounded-2xl shadow-sm border hover:border-orange-400 transition overflow-hidden flex flex-col">
+            <div class="aspect-square bg-orange-50 flex items-center justify-center text-5xl cursor-pointer overflow-hidden" onclick="addItem(${item.id})">
+                ${item.image ? `<img src="${item.image}" class="w-full h-full object-cover" alt="">` : item.emoji}
+            </div>
+            <div class="p-3 flex-1 flex flex-col">
+                <div class="font-semibold text-gray-800 text-sm leading-tight mb-1">${item.name}</div>
+                ${item.desc ? `<div class="text-xs text-gray-400 mb-1 line-clamp-1">${item.desc}</div>` : ''}
+                <div class="mt-auto flex items-center justify-between">
+                    <span class="text-orange-600 font-bold">฿${item.price}</span>
+                    <div class="flex items-center gap-1">
+                        <button onclick="changeQty(${item.id}, -1)" class="w-7 h-7 rounded-full bg-gray-100 text-gray-600 font-bold leading-none">−</button>
+                        <span id="qty-${item.id}" class="w-5 text-center text-sm font-medium">0</span>
+                        <button onclick="changeQty(${item.id}, 1)" class="w-7 h-7 rounded-full bg-orange-500 text-white font-bold leading-none">+</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    // sync qty display
+    for (const id of Object.keys(cart)) {
+        const el = document.getElementById('qty-' + id);
+        if (el) el.textContent = cart[id].qty;
+    }
+}
+
+function backToCategories() {
+    document.getElementById('view-items').classList.add('hidden');
+    document.getElementById('view-categories').classList.remove('hidden');
+}
+
+function addItem(id) { changeQty(id, 1); }
+
+function changeQty(id, delta) {
+    if (!cart[id]) cart[id] = {qty: 0, note: ''};
+    cart[id].qty += delta;
+    if (cart[id].qty <= 0) delete cart[id];
+    const el = document.getElementById('qty-' + id);
+    if (el) el.textContent = cart[id] ? cart[id].qty : 0;
+    updateCartUI();
+}
+
+function updateCartUI() {
+    const count = Object.values(cart).reduce((a, b) => a + b.qty, 0);
+    const countEl = document.getElementById('cart-count');
+    if (count > 0) {
+        countEl.textContent = count;
+        countEl.classList.remove('hidden');
+    } else {
+        countEl.classList.add('hidden');
+    }
+    const container = document.getElementById('cart-items');
+    let total = 0;
+    if (!count) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-8">ยังไม่มีรายการ</p>';
+    } else {
+        container.innerHTML = Object.entries(cart).map(([id, c]) => {
+            const item = allItems.find(i => i.id === parseInt(id));
+            total += item.price * c.qty;
+            return `
+                <div class="flex gap-3 items-center border rounded-xl p-3">
+                    <div class="text-2xl">${item.emoji}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-medium text-sm">${item.name}</div>
+                        <div class="text-orange-600 text-sm font-medium">฿${item.price} × ${c.qty}</div>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button onclick="changeQty(${id}, -1)" class="w-7 h-7 rounded-full bg-gray-100 font-bold">−</button>
+                        <span class="w-5 text-center text-sm">${c.qty}</span>
+                        <button onclick="changeQty(${id}, 1)" class="w-7 h-7 rounded-full bg-orange-500 text-white font-bold">+</button>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+    document.getElementById('cart-total').textContent = '฿' + total.toFixed(0);
+    document.getElementById('btn-submit').disabled = count === 0;
+}
+
+function toggleCart() {
+    const drawer = document.getElementById('cart-drawer');
+    const overlay = document.getElementById('cart-overlay');
+    const open = drawer.classList.contains('translate-x-full');
+    if (open) {
+        drawer.classList.remove('translate-x-full');
+        overlay.classList.remove('hidden');
+    } else {
+        drawer.classList.add('translate-x-full');
+        overlay.classList.add('hidden');
+    }
+}
+
+async function submitOrder() {
+    const tableId = document.getElementById('table-select').value;
+    if (!tableId) { alert('กรุณาเลือกโต๊ะ'); return; }
+    const items = Object.entries(cart).map(([id, c]) => ({
+        id: parseInt(id), quantity: c.qty, note: c.note || ''
+    }));
+    const note = document.getElementById('order-note').value;
+    const btn = document.getElementById('btn-submit');
+    btn.disabled = true;
+    btn.textContent = 'กำลังส่ง...';
+    try {
+        const res = await fetch('/api/staff-order', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({table_id: parseInt(tableId), items, note})
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert('สั่งออเดอร์สำเร็จ! #' + data.order_id + ' ยอด ฿' + data.total.toFixed(0));
+            cart = {};
+            updateCartUI();
+            document.getElementById('order-note').value = '';
+            // reset qty displays
+            document.querySelectorAll('[id^=qty-]').forEach(el => el.textContent = '0');
+            toggleCart();
+        } else {
+            alert(data.message || 'เกิดข้อผิดพลาด');
+            btn.disabled = false;
+            btn.textContent = 'ยืนยันสั่งออเดอร์';
+        }
+    } catch (e) {
+        alert('เชื่อมต่อไม่สำเร็จ');
+        btn.disabled = false;
+        btn.textContent = 'ยืนยันสั่งออเดอร์';
+    }
+}
+
+// pre-select table from ?table=
+const _params = new URLSearchParams(location.search);
+if (_params.get('table')) {
+    const sel = document.getElementById('table-select');
+    if (sel) sel.value = _params.get('table');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,488 @@
+{% extends "base.html" %}
+{% block title %}สถิติยอดขาย - สติๆ{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex">
+    <aside class="w-64 bg-gray-900 text-white flex-shrink-0 hidden md:block relative">
+        <div class="p-5 border-b border-gray-700">
+            <h1 class="text-xl font-bold">🍽️ สติๆ</h1>
+        </div>
+        <nav class="p-3 space-y-1">
+            <a href="/admin" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📊 แดชบอร์ด</a>
+            <a href="/admin/orders" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🧾 ออเดอร์</a>
+            <a href="/admin/pos" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🛒 สั่งออเดอร์</a>
+            <a href="/kitchen" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🍳 หน้าครัว</a>
+            <a href="/admin/menu" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📋 จัดการเมนู</a>
+            <a href="/admin/products" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📦 สินค้าและหมวดหมู่</a>
+            <a href="/admin/stock" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📊 สต็อก</a>
+            <a href="/admin/tables" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🪑 จัดการโต๊ะ</a>
+            <a href="/admin/printers" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🖨️ เครื่องพิมพ์</a>
+            <a href="/admin/shift" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🕐 เปิด/ปิดกะ</a>
+            <a href="/admin/reports" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-orange-500 text-white">📈 สถิติยอดขาย</a>
+            <a href="/admin/settings" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">⚙️ ตั้งค่า</a>
+        </nav>
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-700">
+            <div class="text-sm text-gray-300 mb-2">👤 {{ current_user.name if current_user else 'พนักงาน' }}</div>
+            <a href="/logout" class="block text-center text-sm bg-gray-800 hover:bg-gray-700 py-2 rounded-lg text-gray-300">ออกจากระบบ</a>
+        </div>
+    </aside>
+
+    <main class="flex-1 p-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">📈 สถิติยอดขาย</h1>
+            <div class="flex flex-wrap gap-2 items-center">
+                <button onclick="downloadReportPdf()" class="px-3 py-1.5 rounded-lg text-sm bg-gray-800 text-white hover:bg-gray-900">📄 ดาวน์โหลด PDF</button>
+                <button onclick="loadReport('today')" class="period-btn px-3 py-1.5 rounded-lg text-sm bg-orange-500 text-white" data-p="today">วันนี้</button>
+                <button onclick="loadReport('week')" class="period-btn px-3 py-1.5 rounded-lg text-sm bg-gray-100 hover:bg-gray-200" data-p="week">สัปดาห์นี้</button>
+                <button onclick="loadReport('month')" class="period-btn px-3 py-1.5 rounded-lg text-sm bg-gray-100 hover:bg-gray-200" data-p="month">เดือนนี้</button>
+                <button onclick="loadReport('last7')" class="period-btn px-3 py-1.5 rounded-lg text-sm bg-gray-100 hover:bg-gray-200" data-p="last7">7 วัน</button>
+                <button onclick="loadReport('last30')" class="period-btn px-3 py-1.5 rounded-lg text-sm bg-gray-100 hover:bg-gray-200" data-p="last30">30 วัน</button>
+            </div>
+        </div>
+
+        <p id="period-label" class="text-gray-500 mb-4">กำลังโหลด...</p>
+
+        <!-- Summary cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+            <div class="bg-white rounded-xl p-5 shadow-sm border">
+                <p class="text-sm text-gray-500">รายได้รวม</p>
+                <p id="total-revenue" class="text-2xl font-bold text-green-600 mt-1">฿0</p>
+            </div>
+            <div class="bg-white rounded-xl p-5 shadow-sm border">
+                <p class="text-sm text-gray-500">ต้นทุนรวม</p>
+                <p id="total-cost" class="text-2xl font-bold text-red-500 mt-1">฿0</p>
+            </div>
+            <div class="bg-white rounded-xl p-5 shadow-sm border">
+                <p class="text-sm text-gray-500">กำไรขั้นต้น</p>
+                <p id="total-profit" class="text-2xl font-bold text-blue-600 mt-1">฿0</p>
+            </div>
+            <div class="bg-white rounded-xl p-5 shadow-sm border">
+                <p class="text-sm text-gray-500">อัตรากำไร</p>
+                <p id="profit-margin" class="text-2xl font-bold text-purple-600 mt-1">0%</p>
+            </div>
+            <div class="bg-white rounded-xl p-5 shadow-sm border">
+                <p class="text-sm text-gray-500">จำนวนออเดอร์</p>
+                <p id="total-orders" class="text-2xl font-bold text-orange-600 mt-1">0</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div class="bg-white rounded-xl border shadow-sm p-5">
+                <h2 class="font-bold text-lg mb-4">🏆 อันดับสินค้าขายดี</h2>
+                <div id="top-items" class="space-y-2">
+                    <p class="text-gray-400 text-sm">ไม่มีข้อมูล</p>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl border shadow-sm p-5">
+                <h2 class="font-bold text-lg mb-4">📅 รายได้รายวัน</h2>
+                <div id="daily-list" class="space-y-2">
+                    <p class="text-gray-400 text-sm">ไม่มีข้อมูล</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl border shadow-sm p-5 mb-8">
+            <h2 class="font-bold text-lg mb-4">📂 ยอดขายแยกตามหมวดหมู่</h2>
+            <div id="by-category" class="space-y-4">
+                <p class="text-gray-400 text-sm">ไม่มีข้อมูล</p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl border shadow-sm p-5 mb-8">
+            <h2 class="font-bold text-lg mb-4">💳 ยอดขายแยกตามประเภทการชำระเงิน</h2>
+            <div id="by-payment" class="space-y-2">
+                <p class="text-gray-400 text-sm">ไม่มีข้อมูล</p>
+            </div>
+        </div>
+
+        <!-- บิลย้อนหลัง -->
+        <div class="bg-white rounded-xl border shadow-sm p-5">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <h2 class="font-bold text-lg">🧾 บิลย้อนหลัง</h2>
+                <button onclick="loadHistory()" class="text-sm text-blue-600 hover:underline">รีเฟรช</button>
+            </div>
+            <div id="history-list" class="space-y-2">
+                <p class="text-gray-400 text-sm">กำลังโหลด...</p>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- View / Edit modal -->
+<div id="bill-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="bg-white rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between mb-4">
+            <h2 id="bill-modal-title" class="text-lg font-bold">รายละเอียดบิล</h2>
+            <button onclick="closeBillModal()" class="text-2xl text-gray-400 hover:text-gray-600">&times;</button>
+        </div>
+        <div id="bill-modal-body" class="flex-1 overflow-y-auto mb-4 min-h-[100px]"></div>
+        <div class="flex justify-between items-center border-t pt-3 gap-2 flex-wrap">
+            <span class="font-bold text-lg">ยอดรวม <span id="bill-modal-total" class="text-orange-600">฿0</span></span>
+            <div class="flex gap-2">
+                <button onclick="printBillFromModal()" class="px-4 py-2 bg-gray-100 rounded-lg text-sm">พิมพ์</button>
+                <button id="btn-edit-bill" onclick="startEditBill()" class="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm hidden">แก้ไข</button>
+                <button onclick="deleteBillFromModal()" class="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm">ลบ</button>
+                <button onclick="closeBillModal()" class="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm">ปิด</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const statusLabel = {
+    pending: 'รอดำเนินการ', preparing: 'กำลังทำ', ready: 'พร้อมเสิร์ฟ',
+    completed: 'เสร็จสิ้น', cancelled: 'ยกเลิก'
+};
+const statusColor = {
+    pending: 'bg-yellow-100 text-yellow-800', preparing: 'bg-blue-100 text-blue-800',
+    ready: 'bg-green-100 text-green-800', completed: 'bg-gray-100 text-gray-600',
+    cancelled: 'bg-red-100 text-red-800'
+};
+
+let modalOrderId = null;
+let modalOrder = null;
+
+async function loadReport(period) {
+    document.querySelectorAll('.period-btn').forEach(b => {
+        b.classList.remove('bg-orange-500', 'text-white');
+        b.classList.add('bg-gray-100');
+    });
+    const active = document.querySelector(`[data-p="${period}"]`);
+    if (active) {
+        active.classList.add('bg-orange-500', 'text-white');
+        active.classList.remove('bg-gray-100');
+    }
+
+    const res = await fetch(`/api/reports?period=${period}`);
+    const data = await res.json();
+
+    lastReportData = data; lastReportPeriod = period;
+    document.getElementById('period-label').textContent = data.label;
+    document.getElementById('total-revenue').textContent = '฿' + data.total_revenue.toFixed(0);
+    document.getElementById('total-cost').textContent = '฿' + (data.total_cost||0).toFixed(0);
+    document.getElementById('total-profit').textContent = '฿' + (data.total_profit||0).toFixed(0);
+    document.getElementById('profit-margin').textContent = (data.profit_margin||0).toFixed(1) + '%';
+    document.getElementById('total-orders').textContent = data.total_orders;
+
+    const itemsEl = document.getElementById('top-items');
+    if (!data.top_items || data.top_items.length === 0) {
+        itemsEl.innerHTML = '<p class="text-gray-400 text-sm">ไม่มีข้อมูล</p>';
+    } else {
+        itemsEl.innerHTML = data.top_items.map((item, i) => `
+            <div class="flex items-center justify-between py-2 border-b last:border-0">
+                <div class="flex items-center gap-3">
+                    <span class="w-6 h-6 rounded-full bg-orange-100 text-orange-600 text-xs font-bold flex items-center justify-center">${i+1}</span>
+                    <div><span class="font-medium">${item.name}</span>${item.category?`<div class="text-xs text-gray-400">${item.category}</div>`:''}</div>
+                </div>
+                <div class="text-right text-sm">
+                    <div class="font-medium">${item.qty} ชิ้น · ฿${item.revenue.toFixed(0)}</div>
+                    <div class="text-gray-500">ต้นทุน ฿${(item.cost||0).toFixed(0)} · กำไร ฿${(item.profit||0).toFixed(0)}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    const catEl = document.getElementById('by-category');
+    if (catEl) {
+        const cats = data.by_category || [];
+        if (!cats.length) {
+            catEl.innerHTML = '<p class="text-gray-400 text-sm">ไม่มีข้อมูล</p>';
+        } else {
+            catEl.innerHTML = cats.map(c => `
+                <div class="border rounded-xl p-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-bold text-base">${c.category}</span>
+                        <span class="text-orange-600 font-bold">฿${Number(c.revenue).toFixed(0)}</span>
+                    </div>
+                    <div class="text-xs text-gray-500 mb-2">${c.qty} ชิ้น · ต้นทุน ฿${Number(c.cost||0).toFixed(0)} · กำไร ฿${Number(c.profit||0).toFixed(0)}</div>
+                    <div class="space-y-1">
+                        ${(c.items||[]).map((it,i)=>`
+                            <div class="flex justify-between text-sm py-1 border-t">
+                                <span><span class="text-gray-400 w-5 inline-block">${i+1}.</span> ${it.name}</span>
+                                <span>${it.qty} ชิ้น · ฿${Number(it.revenue).toFixed(0)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+
+    const dailyEl = document.getElementById('daily-list');
+    if (!data.daily || data.daily.length === 0) {
+        dailyEl.innerHTML = '<p class="text-gray-400 text-sm">ไม่มีข้อมูล</p>';
+    } else {
+        const maxRev = Math.max(...data.daily.map(d => d.revenue), 1);
+        dailyEl.innerHTML = data.daily.map(d => `
+            <div class="flex items-center gap-3">
+                <span class="text-sm text-gray-500 w-24">${d.date}</span>
+                <div class="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+                    <div class="bg-orange-400 h-full rounded-full" style="width:${(d.revenue/maxRev)*100}%"></div>
+                </div>
+                <span class="text-sm font-medium w-20 text-right">฿${d.revenue.toFixed(0)}</span>
+            </div>
+        `).join('');
+    }
+
+    const payEl = document.getElementById('by-payment');
+    if (payEl) {
+        const pays = data.by_payment || [];
+        if (!pays.length) {
+            payEl.innerHTML = '<p class="text-gray-400 text-sm">ไม่มีข้อมูล</p>';
+        } else {
+            const totalRev = pays.reduce((s, p) => s + p.revenue, 0) || 1;
+            payEl.innerHTML = pays.map(p => `
+                <div class="flex items-center justify-between py-2 border-b last:border-0">
+                    <div class="flex items-center gap-3">
+                        <span class="font-medium">${p.method}</span>
+                        <span class="text-xs text-gray-400">${p.count} บิล</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="font-bold text-green-600">฿${p.revenue.toFixed(0)}</span>
+                        <span class="text-xs text-gray-400 ml-2">${((p.revenue/totalRev)*100).toFixed(1)}%</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+}
+
+async function loadHistory() {
+    const res = await fetch('/api/orders?history=1');
+    const orders = await res.json();
+    const el = document.getElementById('history-list');
+    if (!orders.length) {
+        el.innerHTML = '<p class="text-gray-400 text-sm py-4 text-center">ยังไม่มีบิลย้อนหลัง</p>';
+        return;
+    }
+    el.innerHTML = `
+        <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-gray-500 border-b">
+                    <th class="py-2 pr-2">บิล</th>
+                    <th class="py-2 pr-2">โต๊ะ</th>
+                    <th class="py-2 pr-2">เวลา</th>
+                    <th class="py-2 pr-2">สถานะ</th>
+                    <th class="py-2 pr-2 text-right">ยอด</th>
+                    <th class="py-2 text-right">จัดการ</th>
+                </tr>
+            </thead>
+            <tbody>
+            ${orders.map(o => `
+                <tr class="border-b last:border-0 hover:bg-gray-50">
+                    <td class="py-2.5 pr-2 font-medium">#${o.id}</td>
+                    <td class="py-2.5 pr-2">${o.table_name}</td>
+                    <td class="py-2.5 pr-2 text-gray-500">${o.created_at}</td>
+                    <td class="py-2.5 pr-2">
+                        <span class="text-xs px-2 py-0.5 rounded-full ${statusColor[o.status]||'bg-gray-100'}">${statusLabel[o.status]||o.status}</span>
+                        ${o.is_paid ? '<span class="text-xs text-green-600 ml-1">ชำระแล้ว</span>' : ''}
+                    </td>
+                    <td class="py-2.5 pr-2 text-right font-medium">฿${Number(o.total).toFixed(0)}</td>
+                    <td class="py-2.5 text-right whitespace-nowrap">
+                        <button onclick="viewBill(${o.id})" class="text-blue-600 hover:underline mr-2">ดู</button>
+                        <button onclick="printReceipt(${o.id})" class="text-gray-600 hover:underline mr-2">พิมพ์</button>
+                        <button onclick="deleteBill(${o.id})" class="text-red-600 hover:underline">ลบ</button>
+                    </td>
+                </tr>
+            `).join('')}
+            </tbody>
+        </table>
+        </div>
+    `;
+}
+
+async function viewBill(id) {
+    modalOrderId = id;
+    const res = await fetch('/api/orders/' + id + '/receipt');
+    const o = await res.json();
+    modalOrder = o;
+    document.getElementById('bill-modal-title').textContent = 'บิล #' + o.order_id + ' · ' + o.table_name;
+    document.getElementById('bill-modal-total').textContent = '฿' + Number(o.total).toFixed(0);
+    const body = document.getElementById('bill-modal-body');
+    body.innerHTML = `
+        <div class="text-sm text-gray-500 mb-2">${o.created_at} · ${statusLabel[o.status]||o.status}${o.is_paid ? ' · ชำระแล้ว' : ''}</div>
+        ${o.note ? `<p class="text-sm text-orange-600 mb-2">📝 ${esc(o.note)}</p>` : ''}
+        <ul class="space-y-1.5">
+            ${(o.items||[]).map(i => `
+                <li class="flex justify-between text-sm border-b py-1.5">
+                    <span>${esc(i.name)} × ${i.quantity}${i.note ? ` <span class="text-orange-500">(${esc(i.note)})</span>` : ''}</span>
+                    <span>฿${(i.unit_price * i.quantity).toFixed(0)}</span>
+                </li>
+            `).join('')}
+        </ul>
+    `;
+    const editBtn = document.getElementById('btn-edit-bill');
+    editBtn.classList.remove('hidden'); // แก้บิลที่ชำระแล้วได้ (admin)
+    const modal = document.getElementById('bill-modal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeBillModal() {
+    document.getElementById('bill-modal').classList.add('hidden');
+    document.getElementById('bill-modal').classList.remove('flex');
+    modalOrderId = null;
+    modalOrder = null;
+}
+
+function startEditBill() {
+    if (!modalOrderId) return;
+    // ไปหน้าออเดอร์แล้วเปิดแก้ไข — หรือ redirect
+    window.location.href = '/admin/orders?edit=' + modalOrderId;
+}
+
+function printBillFromModal() {
+    if (modalOrderId) printReceipt(modalOrderId);
+}
+
+async function deleteBillFromModal() {
+    if (!modalOrderId) return;
+    if (!confirm('ยืนยันลบบิล #' + modalOrderId + '?')) return;
+    await fetch('/api/orders/' + modalOrderId, { method: 'DELETE' });
+    closeBillModal();
+    loadHistory();
+    loadReport(document.querySelector('.period-btn.bg-orange-500')?.dataset?.p || 'today');
+}
+
+async function deleteBill(id) {
+    if (!confirm('ยืนยันลบบิล #' + id + '?')) return;
+    await fetch('/api/orders/' + id, { method: 'DELETE' });
+    loadHistory();
+}
+
+function esc(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function printReceipt(id) {
+    // ใช้ receipt API เพื่อให้มียอดรวมเสมอ
+    const res = await fetch('/api/orders/' + id + '/receipt');
+    const ticket = await res.json();
+    const shop = ticket.shop || {};
+    const shopName = shop.name || 'ใบเสร็จ';
+    const address = shop.address || '';
+    const phone = shop.phone || '';
+    const taxId = shop.tax_id || '';
+    const footer = shop.footer || 'ขอบคุณที่ใช้บริการ';
+
+    const itemsHtml = (ticket.items || []).map(i => {
+        const lineTotal = i.unit_price * i.quantity;
+        return `<div class="row">
+            <span class="qty">${i.quantity}x</span>
+            <span class="name">${esc(i.name)}${i.note ? ' <i>(' + esc(i.note) + ')</i>' : ''}</span>
+            <span class="price">${lineTotal.toFixed(0)}</span>
+        </div>`;
+    }).join('');
+
+    const win = window.open('', '_blank', 'width=320,height=600');
+    win.document.write(`<!DOCTYPE html><html><head><title>ใบเสร็จ #${ticket.order_id}</title>
+<meta charset="utf-8">
+<style>
+  @page { size: 80mm auto; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Sarabun','Tahoma',sans-serif; width: 80mm; max-width: 80mm; padding: 4mm 3mm; font-size: 12px; line-height: 1.35; color: #000; }
+  .center { text-align: center; }
+  .bold { font-weight: 700; }
+  .title { font-size: 16px; margin-bottom: 2px; }
+  .small { font-size: 11px; color: #333; }
+  .meta { text-align: center; font-size: 11px; margin: 4px 0; }
+  .dash { border-top: 1px dashed #000; margin: 6px 0; }
+  .row { display: flex; gap: 4px; margin: 3px 0; align-items: flex-start; }
+  .qty { flex: 0 0 22px; font-weight: 600; }
+  .name { flex: 1; word-break: break-word; }
+  .name i { color: #c60; font-style: normal; font-size: 11px; }
+  .price { flex: 0 0 36px; text-align: right; }
+  .total { font-weight: 700; font-size: 14px; justify-content: space-between; }
+  .footer { text-align: center; font-size: 11px; margin-top: 8px; }
+</style></head><body>
+<div class="center bold title">${esc(shopName)}</div>
+${address ? `<div class="center small">${esc(address)}</div>` : ''}
+${phone ? `<div class="center small">โทร: ${esc(phone)}</div>` : ''}
+${taxId ? `<div class="center small">เลขผู้เสียภาษี: ${esc(taxId)}</div>` : ''}
+<div class="dash"></div>
+<div class="meta">#${ticket.order_id} · ${esc(ticket.table_name)}<br>${esc(ticket.created_at)}</div>
+${ticket.note ? `<div class="center small">📝 ${esc(ticket.note)}</div>` : ''}
+<div class="dash"></div>
+${itemsHtml}
+<div class="dash"></div>
+<div class="row total"><span>รวม</span><span>฿${Number(ticket.total).toFixed(0)}</span></div>
+${ticket.is_paid ? '<div class="center small">✓ ชำระแล้ว</div>' : '<div class="center small">ยังไม่ชำระ</div>'}
+<div class="dash"></div>
+<div class="footer">${esc(footer)}</div>
+<script>window.onload=function(){window.print();setTimeout(function(){window.close()},500)}<\/script>
+</body></html>`);
+    win.document.close();
+}
+
+
+let lastReportData = null;
+let lastReportPeriod = 'today';
+
+function downloadReportPdf() {
+    const data = lastReportData;
+    if (!data) { alert('รอโหลดข้อมูลก่อน'); return; }
+    const shop = 'สติๆ';
+    const topHtml = (data.top_items||[]).map((item,i) =>
+        `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">${i+1}</td>
+         <td style="padding:4px 8px;border-bottom:1px solid #eee">${item.name}${item.category?' <span style="color:#888;font-size:11px">('+item.category+')</span>':''}</td>
+         <td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:right">${item.qty}</td>
+         <td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:right">฿${Number(item.revenue).toFixed(0)}</td></tr>`
+    ).join('');
+    const dailyHtml = (data.daily||[]).map(d =>
+        `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">${d.date}</td>
+         <td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:right">฿${Number(d.revenue).toFixed(0)}</td></tr>`
+    ).join('');
+    const catHtml = (data.by_category||[]).map(c =>
+        `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">${c.category}</td>
+         <td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:right">${c.qty}</td>
+         <td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:right">฿${Number(c.revenue).toFixed(0)}</td></tr>`
+    ).join('');
+    const now = new Date();
+    const ts = now.toLocaleString('th-TH');
+    const win = window.open('', '_blank', 'width=800,height=900');
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>รายงานยอดขาย - ${data.label}</title>
+<style>
+  body{font-family:'Sarabun',Tahoma,sans-serif;padding:24px;color:#111;font-size:13px}
+  h1{font-size:20px;margin:0 0 4px} h2{font-size:15px;margin:20px 0 8px;border-bottom:2px solid #f97316;padding-bottom:4px}
+  .meta{color:#666;margin-bottom:16px} table{width:100%;border-collapse:collapse}
+  .cards{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}
+  .card{border:1px solid #ddd;border-radius:8px;padding:12px 16px;min-width:120px}
+  .card b{display:block;font-size:18px;margin-top:4px}
+  @media print{body{padding:12px} .noprint{display:none}}
+</style></head><body>
+<div class="noprint" style="margin-bottom:12px">
+  <button onclick="window.print()" style="padding:8px 16px;background:#f97316;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px">พิมพ์ / บันทึกเป็น PDF</button>
+  <button onclick="window.close()" style="padding:8px 16px;margin-left:8px;border:1px solid #ccc;border-radius:8px;cursor:pointer">ปิด</button>
+</div>
+<h1>📈 รายงานยอดขาย</h1>
+<div class="meta">ช่วง: <b>${data.label}</b> · สร้างเมื่อ ${ts}</div>
+<div class="cards">
+  <div class="card">รายได้รวม<b style="color:#16a34a">฿${Number(data.total_revenue).toFixed(0)}</b></div>
+  <div class="card">ต้นทุน<b style="color:#dc2626">฿${Number(data.total_cost||0).toFixed(0)}</b></div>
+  <div class="card">กำไร<b style="color:#2563eb">฿${Number(data.total_profit||0).toFixed(0)}</b></div>
+  <div class="card">ออเดอร์<b style="color:#ea580c">${data.total_orders}</b></div>
+  <div class="card">อัตรากำไร<b>${Number(data.profit_margin||0).toFixed(1)}%</b></div>
+</div>
+<h2>📅 สรุปยอดขายรายวัน</h2>
+<table><thead><tr><th style="text-align:left;padding:4px 8px">วันที่</th><th style="text-align:right;padding:4px 8px">รายได้</th></tr></thead>
+<tbody>${dailyHtml || '<tr><td colspan="2" style="padding:8px;color:#888">ไม่มีข้อมูล</td></tr>'}</tbody></table>
+<h2>🏆 อันดับรายการขายดี</h2>
+<table><thead><tr><th style="text-align:left;padding:4px 8px">#</th><th style="text-align:left;padding:4px 8px">รายการ</th><th style="text-align:right;padding:4px 8px">จำนวน</th><th style="text-align:right;padding:4px 8px">ยอดขาย</th></tr></thead>
+<tbody>${topHtml || '<tr><td colspan="4" style="padding:8px;color:#888">ไม่มีข้อมูล</td></tr>'}</tbody></table>
+<h2>📂 ยอดขายตามหมวดหมู่</h2>
+<table><thead><tr><th style="text-align:left;padding:4px 8px">หมวด</th><th style="text-align:right;padding:4px 8px">จำนวน</th><th style="text-align:right;padding:4px 8px">ยอดขาย</th></tr></thead>
+<tbody>${catHtml || '<tr><td colspan="3" style="padding:8px;color:#888">ไม่มีข้อมูล</td></tr>'}</tbody></table>
+<script>setTimeout(function(){window.print()},400)<\/script>
+</body></html>`);
+    win.document.close();
+}
+
+
+loadReport('today');
+loadHistory();
+</script>
+{% endblock %}

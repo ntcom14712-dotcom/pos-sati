@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+{% block title %}ออเดอร์ / แคชเชียร์ - สติๆ{% endblock %}
+{% block content %}
+<div class="min-h-screen flex">
+    <aside class="w-64 bg-gray-900 text-white flex-shrink-0 hidden md:block relative">
+        <div class="p-5 border-b border-gray-700"><h1 class="text-xl font-bold">🍽️ สติๆ</h1></div>
+        <nav class="p-3 space-y-1">
+            <a href="/admin" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📊 แดชบอร์ด</a>
+            <a href="/admin/orders" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-orange-500 text-white">🧾 ออเดอร์</a>
+            <a href="/admin/pos" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🛒 สั่งออเดอร์</a>
+            <a href="/kitchen" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🍳 หน้าครัว</a>
+            <a href="/admin/menu" data-admin-only class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📋 จัดการเมนู</a>
+            <a href="/admin/products" data-admin-only class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📦 สินค้าและหมวดหมู่</a>
+            <a href="/admin/stock" data-admin-only class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📊 สต็อก</a>
+            <a href="/admin/tables" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🪑 จัดการโต๊ะ</a>
+            <a href="/admin/printers" data-admin-only class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🖨️ เครื่องพิมพ์</a>
+            <a href="/admin/shift" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🕐 เปิด/ปิดกะ</a>
+            <a href="/admin/reports" data-admin-only class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📈 สถิติยอดขาย</a>
+            <a href="/admin/settings" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">⚙️ ตั้งค่า</a>
+        </nav>
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-700">
+            <div class="text-sm text-gray-300 mb-2">👤 {{ current_user.name if current_user else 'พนักงาน' }}</div>
+            <a href="/logout" class="block text-center text-sm bg-gray-800 hover:bg-gray-700 py-2 rounded-lg text-gray-300">ออกจากระบบ</a>
+        </div>
+    </aside>
+    <main class="flex-1 p-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h1 class="text-2xl font-bold text-gray-800">ออเดอร์ / โต๊ะ</h1>
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="inline-flex items-center gap-1.5 text-sm text-gray-600"><span class="w-4 h-4 rounded border bg-white"></span> ว่าง</span>
+                <span class="inline-flex items-center gap-1.5 text-sm text-gray-600"><span class="w-4 h-4 rounded bg-gradient-to-br from-orange-500 to-red-500"></span> มีบิลค้างชำระ</span>
+                <a href="/admin/pos" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium">+ สั่งออเดอร์</a>
+            </div>
+        </div>
+        <p class="text-sm text-gray-500 mb-3">โต๊ะจะเป็นสีส้มจนกว่าจะกดชำระเงิน (เสิร์ฟแล้วไม่ทำให้โต๊ะหาย)</p>
+        <div id="tables-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 mb-8"></div>
+        <h2 class="text-lg font-bold text-gray-800 mb-1">รายการออเดอร์ที่ครัวยังไม่เสร็จ</h2>
+        <p class="text-sm text-gray-500 mb-3">ส่วนนี้แยกจากสี่เหลี่ยมโต๊ะ — กดเสิร์ฟแล้วจะหายจากรายการนี้ แต่โต๊ะยังค้างจนกว่าจะชำระ</p>
+        <div id="orders-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+    </main>
+</div>
+
+<!-- Payment method modal -->
+<div id="pay-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4">
+        <h2 class="text-lg font-bold mb-1">ชำระเงิน</h2>
+        <p class="text-sm text-gray-500 mb-4">เลือกประเภทการชำระ</p>
+        <div class="grid grid-cols-2 gap-2 mb-4">
+            <button onclick="confirmPay('cash')" class="py-3 rounded-xl border-2 border-gray-200 hover:border-orange-500 hover:bg-orange-50 font-medium">💵 เงินสด</button>
+            <button onclick="confirmPay('transfer')" class="py-3 rounded-xl border-2 border-gray-200 hover:border-orange-500 hover:bg-orange-50 font-medium">🏦 โอน</button>
+            <button onclick="confirmPay('card')" class="py-3 rounded-xl border-2 border-gray-200 hover:border-orange-500 hover:bg-orange-50 font-medium">💳 บัตรเครดิต</button>
+            <button onclick="confirmPay('other')" class="py-3 rounded-xl border-2 border-gray-200 hover:border-orange-500 hover:bg-orange-50 font-medium">📋 อื่นๆ</button>
+        </div>
+        <button onclick="closePayModal()" class="w-full py-2 text-sm text-gray-500">ยกเลิก</button>
+    </div>
+</div>
+
+<!-- Low stock banner -->
+<div id="low-stock-banner" class="hidden bg-red-50 border-b border-red-200 text-red-700 text-sm px-4 py-2"></div>
+<div id="table-detail-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-lg mx-4 max-h-[90vh] flex flex-col shadow-2xl">
+        <div class="flex items-center justify-between mb-3">
+            <h2 id="table-detail-title" class="text-lg font-bold">โต๊ะ</h2>
+            <button onclick="closeTableDetail()" class="text-2xl text-gray-400">&times;</button>
+        </div>
+        <div id="table-detail-body" class="flex-1 overflow-y-auto mb-4 min-h-[80px]"></div>
+        <div class="flex gap-2 border-t pt-3">
+            <button id="table-add-order-btn" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-lg text-sm font-medium">+ เพิ่มออเดอร์</button>
+            <button onclick="closeTableDetail()" class="px-5 py-2.5 bg-gray-100 rounded-lg text-sm">ปิด</button>
+        </div>
+    </div>
+</div>
+
+<div id="edit-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="bg-white rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between mb-4">
+            <h2 id="edit-order-title" class="text-lg font-bold">แก้ไขบิล</h2>
+            <button onclick="closeEditModal()" class="text-2xl text-gray-400">&times;</button>
+        </div>
+        <div id="edit-items-list" class="flex-1 overflow-y-auto mb-4 min-h-[120px]"></div>
+        <div class="border-t pt-3 space-y-3">
+            <div class="flex gap-2 items-end">
+                <div class="flex-1">
+                    <label class="text-xs text-gray-500">เพิ่มเมนู</label>
+                    <select id="add-menu-select" class="w-full border rounded-lg px-2 py-1.5 text-sm"></select>
+                </div>
+                <div class="w-16">
+                    <label class="text-xs text-gray-500">จำนวน</label>
+                    <input id="add-menu-qty" type="number" value="1" min="1" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+                </div>
+                <button onclick="addEditItem()" class="bg-orange-500 text-white px-3 py-1.5 rounded-lg text-sm">เพิ่ม</button>
+            </div>
+            <div>
+                <label class="text-xs text-gray-500">หมายเหตุ</label>
+                <div class="flex gap-2">
+                    <input id="edit-order-note" class="flex-1 border rounded-lg px-2 py-1.5 text-sm">
+                    <button onclick="saveEditNote()" class="text-sm text-blue-600 px-2">บันทึก</button>
+                </div>
+            </div>
+            <div class="flex justify-between items-center pt-2">
+                <span class="font-bold text-lg">ยอดรวม <span id="edit-order-total" class="text-orange-600">฿0</span></span>
+                <button onclick="closeEditModal()" class="bg-gray-800 text-white px-5 py-2 rounded-lg text-sm">ปิด</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const statusLabel = { pending:'รอดำเนินการ', preparing:'กำลังทำ', ready:'รอเสิร์ฟ', completed:'เสิร์ฟแล้ว', cancelled:'ยกเลิก' };
+const statusColor = { pending:'bg-yellow-100 text-yellow-800', preparing:'bg-blue-100 text-blue-800', ready:'bg-green-100 text-green-800', completed:'bg-gray-100 text-gray-600', cancelled:'bg-red-100 text-red-800' };
+let canEditBills = false, isAdmin = false, menuCache = [], editingOrderId = null;
+
+function esc(s){ if(!s)return''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+let tablesCache = [];
+
+async function loadTables() {
+    const res = await fetch('/api/tables/status');
+    tablesCache = await res.json();
+    const grid = document.getElementById('tables-grid');
+    grid.innerHTML = tablesCache.map(t => {
+        const busy = t.has_order;
+        const bg = busy
+            ? 'bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-md border-orange-600'
+            : 'bg-white text-gray-700 border-gray-200 hover:border-orange-300';
+        return `<button onclick="openTableDetail(${t.id})" class="table-square ${busy?'busy':''} aspect-square rounded-2xl border-2 ${bg} p-3 flex flex-col items-center justify-center">
+            <div class="text-xl font-bold tracking-tight">${esc(t.name)}</div>
+            ${busy ? `<div class="text-xs mt-1.5 opacity-90">${t.order_count} บิลค้าง</div>
+            <div class="text-base font-extrabold mt-0.5">฿${Number(t.total_pending).toFixed(0)}</div>` : `<div class="text-xs text-gray-400 mt-2">ว่าง</div>`}
+        </button>`;
+    }).join('');
+}
+
+function openTableDetail(tableId) {
+    const t = tablesCache.find(x => x.id === tableId);
+    if (!t) return;
+    document.getElementById('table-detail-title').textContent = t.name;
+    document.getElementById('table-add-order-btn').onclick = function() {
+        location.href = '/admin/pos?table=' + t.id;
+    };
+    const body = document.getElementById('table-detail-body');
+    if (!t.has_order || !t.orders.length) {
+        body.innerHTML = '<p class="text-gray-400 text-center py-6">ยังไม่มีบิลค้างชำระ<br><span class="text-sm">กด "เพิ่มออเดอร์" เพื่อสั่งอาหาร</span></p>';
+    } else {
+        body.innerHTML = t.orders.map(o => `
+            <div class="border rounded-xl p-3 mb-3">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="font-bold">#${o.id}</span>
+                    <span class="text-xs px-2 py-0.5 rounded-full ${statusColor[o.status]||'bg-gray-100'}">${statusLabel[o.status]||o.status}</span>
+                </div>
+                <div class="text-xs text-gray-500 mb-2">${o.created_at}${o.is_paid?' · <span class="text-green-600">ชำระแล้ว</span>':''}</div>
+                <ul class="text-sm space-y-1 mb-2">
+                    ${(o.items||[]).map(i => `<li class="flex justify-between"><span>${esc(i.name)} × ${i.quantity}${i.note?' <span class="text-orange-500">('+esc(i.note)+')</span>':''}</span><span>฿${(i.unit_price*i.quantity).toFixed(0)}</span></li>`).join('')}
+                </ul>
+                ${o.note?`<p class="text-xs text-orange-600 mb-1">📝 ${esc(o.note)}</p>`:''}
+                <div class="flex justify-between items-center border-t pt-2">
+                    <span class="font-bold">รวม ฿${Number(o.total).toFixed(0)}</span>
+                    <div class="flex gap-1 flex-wrap">
+                        ${!o.is_paid?`<button onclick="markPaid(${o.id});closeTableDetail();" class="px-2 py-1 bg-green-500 text-white text-xs rounded">ชำระ</button>`:''}
+                        <button onclick="printReceipt(${o.id})" class="px-2 py-1 bg-gray-100 text-xs rounded">พิมพ์</button>
+                        ${canEditBills?`<button onclick="closeTableDetail();editOrder(${o.id})" class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">แก้ไข</button>`:''}
+                        ${o.status==='pending'?`<button onclick="setStatus(${o.id},'preparing');setTimeout(refresh,300)" class="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded">เริ่มทำ</button>`:''}
+                        ${(o.status==='preparing'||o.status==='ready')?`<button onclick="setStatus(${o.id},'completed');setTimeout(()=>{closeTableDetail();refresh();},300)" class="px-2 py-1 bg-orange-500 text-white text-xs rounded">เสิร์ฟแล้ว</button>`:''}
+                    </div>
+                </div>
+            </div>
+        `).join('') + `<div class="text-right font-bold text-lg pt-1">ยอดรวมโต๊ะ ฿${Number(t.total_pending).toFixed(0)}</div>`;
+    }
+    const m = document.getElementById('table-detail-modal');
+    m.classList.remove('hidden'); m.classList.add('flex');
+}
+function closeTableDetail() {
+    document.getElementById('table-detail-modal').classList.add('hidden');
+    document.getElementById('table-detail-modal').classList.remove('flex');
+}
+
+async function loadOrders() {
+    const res = await fetch('/api/orders');
+    const orders = await res.json();
+    const container = document.getElementById('orders-container');
+    if (!orders.length) {
+        container.innerHTML = '<p class="text-gray-500 col-span-full text-center py-8">ไม่มีออเดอร์ที่ครัวยังทำอยู่</p>';
+        return;
+    }
+    container.innerHTML = orders.map(o => `
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 card" id="order-card-${o.id}">
+            <div class="flex items-center justify-between mb-3">
+                <div><span class="font-bold text-lg">#${o.id}</span><span class="ml-2 text-gray-600">${o.table_name}</span></div>
+                <span class="text-xs px-2 py-1 rounded-full ${statusColor[o.status]||'bg-gray-100'}">${statusLabel[o.status]||o.status}</span>
+            </div>
+            <div class="text-sm text-gray-500 mb-2">${o.created_at}</div>
+            <ul class="text-sm space-y-1 mb-3">
+                ${(o.items||[]).map(i => `<li class="flex justify-between"><span>${esc(i.name)} × ${i.quantity}${i.note?` <span class="text-orange-500">(${esc(i.note)})</span>`:''}</span><span>฿${(i.unit_price*i.quantity).toFixed(0)}</span></li>`).join('')}
+            </ul>
+            ${o.note?`<p class="text-sm text-orange-600 mb-2">📝 ${esc(o.note)}</p>`:''}
+            <div class="flex items-center justify-between border-t pt-3">
+                <span class="font-bold text-lg">฿${Number(o.total).toFixed(0)}</span>
+                <div class="flex gap-2 flex-wrap justify-end">
+                    ${!o.is_paid?`<button onclick="markPaid(${o.id})" class="px-3 py-1.5 bg-green-500 text-white text-sm rounded-lg">ชำระเงิน</button>`:`<span class="text-green-600 text-sm">✓ ชำระแล้ว</span>`}
+                    <button onclick="printReceipt(${o.id})" class="px-3 py-1.5 bg-gray-100 text-sm rounded-lg">พิมพ์</button>
+                    ${canEditBills?`<button onclick="editOrder(${o.id})" class="px-3 py-1.5 bg-blue-100 text-blue-700 text-sm rounded-lg">แก้ไขบิล</button>`:''}
+                    ${canEditBills?`<button onclick="deleteOrder(${o.id})" class="px-3 py-1.5 bg-red-50 text-red-600 text-sm rounded-lg">ลบ</button>`:''}
+                </div>
+            </div>
+            ${o.status!=='completed'&&o.status!=='cancelled'?`
+            <div class="flex gap-1 mt-3">
+                ${o.status==='pending'?`<button onclick="setStatus(${o.id},'preparing')" class="flex-1 text-xs py-1.5 bg-blue-50 text-blue-700 rounded">เริ่มทำ</button>`:''}
+                ${(o.status==='preparing'||o.status==='ready')?`<button onclick="setStatus(${o.id},'completed')" class="flex-1 text-xs py-1.5 bg-orange-500 text-white rounded font-medium">เสิร์ฟแล้ว</button>`:''}
+                <button onclick="setStatus(${o.id},'cancelled')" class="text-xs py-1.5 px-2 text-red-600 rounded">ยกเลิก</button>
+            </div>`:''}
+        </div>`).join('');
+}
+
+async function setStatus(id, status) {
+    await fetch('/api/orders/'+id+'/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});
+    refresh();
+}
+async function markPaid(id) {
+    window._payOrderId = id;
+    const m = document.getElementById('pay-modal');
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+}
+function closePayModal() {
+    document.getElementById('pay-modal').classList.add('hidden');
+    document.getElementById('pay-modal').classList.remove('flex');
+    window._payOrderId = null;
+}
+async function confirmPay(method) {
+    const id = window._payOrderId;
+    if (!id) return;
+    closePayModal();
+    const res = await fetch('/api/orders/' + id + '/pay', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({payment_method: method})
+    });
+    const data = await res.json();
+    if (data.low_stock && data.low_stock.length) {
+        const names = data.low_stock.map(s => s.name + ' (เหลือ ' + s.stock + ')').join(', ');
+        alert('⚠️ สต็อกเหลือน้อย: ' + names);
+    }
+    refresh();
+    checkLowStock();
+}
+
+async function checkLowStock() {
+    try {
+        const res = await fetch('/api/stock/low');
+        const items = await res.json();
+        const banner = document.getElementById('low-stock-banner');
+        if (items.length) {
+            banner.innerHTML = '⚠️ สต็อกเหลือน้อยกว่า 2: ' + items.map(i => `${i.name} (${i.category}) เหลือ ${i.stock}`).join(' · ');
+            banner.classList.remove('hidden');
+        } else {
+            banner.classList.add('hidden');
+        }
+    } catch(e) {}
+}
+async function deleteOrder(id) {
+    if(!confirm('ยืนยันลบบิล #'+id+'?'))return;
+    await fetch('/api/orders/'+id,{method:'DELETE'});
+    refresh();
+}
+async function printReceipt(id) {
+    const res = await fetch('/api/orders/'+id+'/receipt');
+    const ticket = await res.json();
+    const shop = ticket.shop||{};
+    const itemsHtml = (ticket.items||[]).map(i => {
+        const lt = i.unit_price*i.quantity;
+        return '<div class="row"><span class="qty">'+i.quantity+'x</span><span class="name">'+esc(i.name)+(i.note?' <i>('+esc(i.note)+')</i>':'')+'</span><span class="price">'+lt.toFixed(0)+'</span></div>';
+    }).join('');
+    const win = window.open('','_blank','width=320,height=600');
+    win.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>ใบเสร็จ</title><style>@page{size:80mm auto;margin:0}*{box-sizing:border-box;margin:0;padding:0}body{font-family:Sarabun,Tahoma,sans-serif;width:80mm;padding:4mm 3mm;font-size:12px}.center{text-align:center}.bold{font-weight:700}.title{font-size:16px}.small{font-size:11px;color:#333}.dash{border-top:1px dashed #000;margin:6px 0}.row{display:flex;gap:4px;margin:3px 0}.qty{flex:0 0 22px;font-weight:600}.name{flex:1}.price{flex:0 0 36px;text-align:right}.total{font-weight:700;font-size:14px;justify-content:space-between}</style></head><body>'+
+        '<div class="center bold title">'+esc(shop.name||'ใบเสร็จ')+'</div>'+
+        (shop.address?'<div class="center small">'+esc(shop.address)+'</div>':'')+
+        (shop.phone?'<div class="center small">โทร: '+esc(shop.phone)+'</div>':'')+
+        '<div class="dash"></div><div class="center small">#'+ticket.order_id+' · '+esc(ticket.table_name)+'<br>'+esc(ticket.created_at)+'</div>'+
+        '<div class="dash"></div>'+itemsHtml+
+        '<div class="dash"></div><div class="row total"><span>รวม</span><span>฿'+Number(ticket.total).toFixed(0)+'</span></div>'+
+        '<div class="dash"></div><div class="center small">'+esc(shop.footer||'ขอบคุณที่ใช้บริการ')+'</div>'+
+        '<script>window.onload=function(){window.print();setTimeout(function(){window.close()},500)}<\/script></body></html>');
+    win.document.close();
+}
+
+async function editOrder(orderId) {
+    editingOrderId = orderId;
+    const res = await fetch('/api/orders/'+orderId);
+    const order = await res.json();
+    if(!menuCache.length){ const mr=await fetch('/api/menu/list'); menuCache=await mr.json(); }
+    document.getElementById('edit-order-title').textContent = 'แก้ไขบิล #'+order.id+' · '+order.table_name+(order.is_paid?' (ชำระแล้ว)':'');
+    document.getElementById('edit-order-note').value = order.note||'';
+    renderEditItems(order.items||[]);
+    document.getElementById('edit-order-total').textContent = '฿'+Number(order.total).toFixed(0);
+    document.getElementById('add-menu-select').innerHTML = '<option value="">-- เลือกเมนู --</option>'+menuCache.map(m=>'<option value="'+m.id+'">'+m.name+' (฿'+m.price+')</option>').join('');
+    const modal=document.getElementById('edit-modal'); modal.classList.remove('hidden'); modal.classList.add('flex');
+}
+function renderEditItems(items){
+    const el=document.getElementById('edit-items-list');
+    if(!items.length){ el.innerHTML='<p class="text-gray-400 text-sm py-4 text-center">ไม่มีรายการ</p>'; return; }
+    el.innerHTML=items.map(i=>'<div class="flex items-center gap-2 py-2 border-b"><div class="flex-1"><div class="font-medium text-sm">'+esc(i.name)+'</div><div class="text-xs text-gray-500">฿'+i.unit_price+'</div></div>'+
+        '<button onclick="changeEditQty('+i.id+','+(i.quantity-1)+')" class="w-7 h-7 rounded-full bg-gray-100 font-bold">−</button>'+
+        '<span class="w-6 text-center text-sm">'+i.quantity+'</span>'+
+        '<button onclick="changeEditQty('+i.id+','+(i.quantity+1)+')" class="w-7 h-7 rounded-full bg-orange-500 text-white font-bold">+</button>'+
+        '<button onclick="removeEditItem('+i.id+')" class="text-red-500 text-sm ml-1">ลบ</button></div>').join('');
+}
+async function changeEditQty(itemId,qty){
+    const res=await fetch('/api/orders/'+editingOrderId+'/items/'+itemId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({quantity:qty})});
+    const data=await res.json();
+    if(data.success){ document.getElementById('edit-order-total').textContent='฿'+data.total.toFixed(0); const r=await fetch('/api/orders/'+editingOrderId); renderEditItems((await r.json()).items); refresh(); }
+    else alert(data.message||'ผิดพลาด');
+}
+async function removeEditItem(itemId){
+    if(!confirm('ลบรายการนี้?'))return;
+    const res=await fetch('/api/orders/'+editingOrderId+'/items/'+itemId,{method:'DELETE'});
+    const data=await res.json();
+    if(data.success){ document.getElementById('edit-order-total').textContent='฿'+data.total.toFixed(0); const r=await fetch('/api/orders/'+editingOrderId); renderEditItems((await r.json()).items); refresh(); }
+}
+async function addEditItem(){
+    const menuId=document.getElementById('add-menu-select').value;
+    const qty=parseInt(document.getElementById('add-menu-qty').value)||1;
+    if(!menuId){alert('เลือกเมนู');return;}
+    const res=await fetch('/api/orders/'+editingOrderId+'/items',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({menu_item_id:parseInt(menuId),quantity:qty})});
+    const data=await res.json();
+    if(data.success){ document.getElementById('edit-order-total').textContent='฿'+data.total.toFixed(0); const r=await fetch('/api/orders/'+editingOrderId); renderEditItems((await r.json()).items); refresh(); }
+    else alert(data.message||'ผิดพลาด');
+}
+async function saveEditNote(){
+    await fetch('/api/orders/'+editingOrderId+'/note',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({note:document.getElementById('edit-order-note').value})});
+    refresh();
+}
+function closeEditModal(){ document.getElementById('edit-modal').classList.add('hidden'); document.getElementById('edit-modal').classList.remove('flex'); refresh(); }
+function refresh(){ loadTables(); loadOrders(); }
+
+async function init(){
+    try{ const me=await (await fetch('/api/me')).json(); canEditBills=!!me.can_edit_bills; isAdmin=!!me.is_admin;
+        if(!isAdmin) document.querySelectorAll('[data-admin-only]').forEach(el=>el.classList.add('hidden'));
+    }catch(e){}
+    refresh();
+    checkLowStock();
+    setInterval(refresh, 5000);
+    setInterval(checkLowStock, 30000);
+    const params=new URLSearchParams(location.search);
+    if(params.get('edit')&&canEditBills) setTimeout(()=>editOrder(parseInt(params.get('edit'))),400);
+}
+init();
+</script>
+{% endblock %}

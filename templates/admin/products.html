@@ -1,0 +1,406 @@
+{% extends "base.html" %}
+{% block title %}จัดการสินค้าและหมวดหมู่ - สติๆ{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex">
+    <aside class="w-64 bg-gray-900 text-white flex-shrink-0 hidden md:block relative">
+        <div class="p-5 border-b border-gray-700">
+            <h1 class="text-xl font-bold">🍽️ สติๆ</h1>
+        </div>
+        <nav class="p-3 space-y-1">
+            <a href="/admin" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📊 แดชบอร์ด</a>
+            <a href="/admin/orders" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🧾 ออเดอร์</a>
+            <a href="/admin/pos" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🛒 สั่งออเดอร์</a>
+            <a href="/kitchen" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🍳 หน้าครัว</a>
+            <a href="/admin/menu" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📋 จัดการเมนู</a>
+            <a href="/admin/products" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-orange-500 text-white">📦 จัดการสินค้า</a>
+            <a href="/admin/stock" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📊 สต็อก</a>
+            <a href="/admin/tables" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🪑 จัดการโต๊ะ</a>
+            <a href="/admin/printers" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🖨️ เครื่องพิมพ์</a>
+            <a href="/admin/shift" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🕐 เปิด/ปิดกะ</a>
+            <a href="/admin/reports" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📈 สถิติยอดขาย</a>
+            <a href="/admin/settings" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">⚙️ ตั้งค่า</a>
+        </nav>
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-700">
+            <div class="text-sm text-gray-300 mb-2">👤 {{ current_user.name if current_user else 'พนักงาน' }}</div>
+            <a href="/logout" class="block text-center text-sm bg-gray-800 hover:bg-gray-700 py-2 rounded-lg text-gray-300">ออกจากระบบ</a>
+        </div>
+    </aside>
+
+    <main class="flex-1 p-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">📦 จัดการสินค้าและหมวดหมู่</h1>
+            <div class="flex gap-2">
+                <button onclick="openCatModal()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium">+ หมวดหมู่</button>
+                <button onclick="openItemModal()" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium">+ สินค้า</button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            <div class="bg-white rounded-xl border p-4">
+                <p class="text-xs text-gray-500">หมวดหมู่</p>
+                <p class="text-2xl font-bold text-blue-600">{{ categories|length }}</p>
+            </div>
+            <div class="bg-white rounded-xl border p-4">
+                <p class="text-xs text-gray-500">สินค้าทั้งหมด</p>
+                <p class="text-2xl font-bold text-orange-600">{{ items|length }}</p>
+            </div>
+            <div class="bg-white rounded-xl border p-4">
+                <p class="text-xs text-gray-500">เปิดขาย</p>
+                <p class="text-2xl font-bold text-green-600">{{ items|selectattr('is_available')|list|length }}</p>
+            </div>
+            <div class="bg-white rounded-xl border p-4">
+                <p class="text-xs text-gray-500">ปิดขาย</p>
+                <p class="text-2xl font-bold text-gray-500">{{ items|rejectattr('is_available')|list|length }}</p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl border shadow-sm p-5 mb-6">
+            <h2 class="font-bold text-lg mb-4">🏷️ หมวดหมู่สินค้า</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {% for cat in categories %}
+                <div class="border rounded-xl p-4 flex items-center gap-3" id="cat-{{ cat.id }}">
+                    <button type="button" onclick="editCat({{ cat.id }}, {{ cat.name|tojson }}, {{ (cat.image_url or '')|tojson }})" class="flex-shrink-0" title="เปลี่ยนรูป">
+                        {% if cat.image_url %}
+                        <img src="{{ cat.image_url }}" class="w-16 h-16 object-cover rounded-xl border">
+                        {% else %}
+                        <div class="w-16 h-16 bg-gray-100 rounded-xl flex flex-col items-center justify-center text-xs text-gray-400 border border-dashed">
+                            <span class="text-xl">📷</span>
+                            <span>ใส่รูป</span>
+                        </div>
+                        {% endif %}
+                    </button>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-medium truncate">{{ cat.name }}</div>
+                        <div class="text-xs text-gray-500">{{ grouped.get(cat.id, [])|length }} รายการ</div>
+                        <button onclick="editCat({{ cat.id }}, {{ cat.name|tojson }}, {{ (cat.image_url or '')|tojson }})" class="text-orange-600 text-xs mt-1 hover:underline">เปลี่ยนรูป / แก้ไข</button>
+                    </div>
+                    <button onclick="deleteCat({{ cat.id }})" class="text-red-500 text-sm">ลบ</button>
+                </div>
+                {% else %}
+                <p class="text-gray-400 text-sm">ยังไม่มีหมวดหมู่</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% for cat in categories %}
+        {% set cat_items = grouped.get(cat.id, []) %}
+        <div class="mb-6">
+            <h2 class="font-bold text-lg mb-3 flex items-center gap-2">
+                <span class="w-2 h-6 bg-orange-500 rounded"></span>
+                {{ cat.name }}
+                <span class="text-sm font-normal text-gray-400">({{ cat_items|length }})</span>
+            </h2>
+            <div class="bg-white rounded-xl border overflow-hidden">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-3">ชื่อสินค้า</th>
+                            <th class="px-4 py-3">รายละเอียด</th>
+                            <th class="px-4 py-3">ราคา</th>
+                            <th class="px-4 py-3">สถานะ</th>
+                            <th class="px-4 py-3">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in cat_items %}
+                        <tr class="border-b hover:bg-gray-50" id="row-{{ item.id }}">
+                            <td class="px-4 py-3 font-medium">{{ item.name }}</td>
+                            <td class="px-4 py-3 text-gray-500">{{ item.description or '-' }}</td>
+                            <td class="px-4 py-3 font-medium text-orange-600">฿{{ "%.0f"|format(item.price) }}</td>
+                            <td class="px-4 py-3">
+                                {% if item.is_available %}
+                                <span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">เปิดขาย</span>
+                                {% else %}
+                                <span class="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full">ปิดขาย</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3">
+                                <button onclick="editItem({{ item.id }}, {{ item.name|tojson }}, {{ (item.description or '')|tojson }}, {{ item.price }}, {{ item.category_id or 'null' }}, {{ 'true' if item.is_available else 'false' }}, {{ (item.image_url or '')|tojson }}, {{ item.stock_qty if item.stock_qty is not none else 'null' }})" class="text-blue-600 text-sm hover:underline mr-2">แก้ไข</button>
+                                <button onclick="deleteItem({{ item.id }})" class="text-red-600 text-sm hover:underline">ลบ</button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="px-4 py-6 text-center text-gray-400">ยังไม่มีสินค้าในหมวดนี้</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if no_cat %}
+        <div class="mb-6">
+            <h2 class="font-bold text-lg mb-3">ไม่มีหมวดหมู่</h2>
+            <div class="bg-white rounded-xl border overflow-hidden">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-3">ชื่อสินค้า</th>
+                            <th class="px-4 py-3">รายละเอียด</th>
+                            <th class="px-4 py-3">ราคา</th>
+                            <th class="px-4 py-3">สถานะ</th>
+                            <th class="px-4 py-3">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in no_cat %}
+                        <tr class="border-b hover:bg-gray-50" id="row-{{ item.id }}">
+                            <td class="px-4 py-3 font-medium">{{ item.name }}</td>
+                            <td class="px-4 py-3 text-gray-500">{{ item.description or '-' }}</td>
+                            <td class="px-4 py-3 font-medium text-orange-600">฿{{ "%.0f"|format(item.price) }}</td>
+                            <td class="px-4 py-3">
+                                {% if item.is_available %}
+                                <span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">เปิดขาย</span>
+                                {% else %}
+                                <span class="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full">ปิดขาย</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3">
+                                <button onclick="editItem({{ item.id }}, {{ item.name|tojson }}, {{ (item.description or '')|tojson }}, {{ item.price }}, null, {{ 'true' if item.is_available else 'false' }}, {{ (item.image_url or '')|tojson }}, {{ item.stock_qty if item.stock_qty is not none else 'null' }})" class="text-blue-600 text-sm hover:underline mr-2">แก้ไข</button>
+                                <button onclick="deleteItem({{ item.id }})" class="text-red-600 text-sm hover:underline">ลบ</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </main>
+</div>
+
+<div id="cat-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="bg-white rounded-xl p-6 w-full max-w-sm mx-4">
+        <h2 id="cat-modal-title" class="text-lg font-bold mb-4">เพิ่มหมวดหมู่</h2>
+        <input type="hidden" id="cat-edit-id">
+        <label class="text-sm text-gray-600">ชื่อหมวดหมู่</label>
+        <input id="cat-name" class="w-full border rounded-lg px-3 py-2 mt-1 mb-3" placeholder="เช่น อาหารจานหลัก">
+        <label class="text-sm text-gray-600">รูปหมวดหมู่</label>
+        <input type="hidden" id="cat-image">
+        <div class="flex items-center gap-3 mt-1 mb-4">
+            <img id="cat-image-preview" src="" class="w-16 h-16 object-cover rounded-xl hidden border">
+            <input type="file" id="cat-image-file" accept="image/*" class="text-sm" onchange="uploadCatImage(this)">
+        </div>
+        <div class="flex gap-2">
+            <button onclick="closeCatModal()" class="flex-1 py-2 border rounded-lg">ยกเลิก</button>
+            <button onclick="saveCat()" class="flex-1 py-2 bg-blue-500 text-white rounded-lg">บันทึก</button>
+        </div>
+    </div>
+</div>
+
+<div id="item-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+        <h2 id="item-modal-title" class="text-lg font-bold mb-4">เพิ่มสินค้า</h2>
+        <input type="hidden" id="item-edit-id">
+        <div class="space-y-3">
+            <div>
+                <label class="text-sm text-gray-600">ชื่อสินค้า</label>
+                <input id="f-name" class="w-full border rounded-lg px-3 py-2 mt-1" placeholder="เช่น ผัดกะเพรา">
+            </div>
+            <div>
+                <label class="text-sm text-gray-600">รายละเอียด</label>
+                <input id="f-desc" class="w-full border rounded-lg px-3 py-2 mt-1" placeholder="ไม่บังคับ">
+            </div>
+            <div>
+                <label class="text-sm text-gray-600">ราคาขาย (บาท)</label>
+                <input id="f-price" type="number" class="w-full border rounded-lg px-3 py-2 mt-1" placeholder="60">
+            </div>
+            <div>
+                <label class="text-sm text-gray-600">ต้นทุน (บาท)</label>
+                <input id="f-cost" type="number" class="w-full border rounded-lg px-3 py-2 mt-1" placeholder="0">
+            </div>
+            <div>
+                <label class="text-sm text-gray-600">หมวดหมู่</label>
+                <select id="f-cat" class="w-full border rounded-lg px-3 py-2 mt-1" onchange="toggleStockField()">
+                    <option value="">-- ไม่ระบุ --</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}">{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="text-sm text-gray-600">รูปสินค้า</label>
+                <input type="hidden" id="f-image">
+                <div class="flex items-center gap-3 mt-1">
+                    <img id="f-image-preview" src="" class="w-16 h-16 object-cover rounded-lg hidden border">
+                    <input type="file" id="f-image-file" accept="image/*" class="text-sm" onchange="uploadImage(this)">
+                </div>
+                <p class="text-xs text-gray-400 mt-1">jpg png webp · แนะนำสี่เหลี่ยม</p>
+            </div>
+            <div id="stock-field" class="hidden">
+                <label class="text-sm text-gray-600">สต็อก (จำนวน)</label>
+                <input id="f-stock" type="number" min="0" class="w-full border rounded-lg px-3 py-2 mt-1" placeholder="จำนวนในสต็อก">
+                <p class="text-xs text-gray-400 mt-1">เฉพาะ อาหารทานเล่น / มิกซ์เซอร์ / เบียร์ / เหล้า</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <input type="checkbox" id="f-available" checked>
+                <label for="f-available" class="text-sm">เปิดขาย</label>
+            </div>
+        </div>
+        <div class="flex gap-2 mt-5">
+            <button onclick="closeItemModal()" class="flex-1 py-2 border rounded-lg">ยกเลิก</button>
+            <button onclick="saveItem()" class="flex-1 py-2 bg-orange-500 text-white rounded-lg">บันทึก</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openCatModal() {
+    document.getElementById('cat-modal-title').textContent = 'เพิ่มหมวดหมู่';
+    document.getElementById('cat-edit-id').value = '';
+    document.getElementById('cat-name').value = '';
+    document.getElementById('cat-image').value = '';
+    document.getElementById('cat-image-preview').classList.add('hidden');
+    document.getElementById('cat-image-file').value = '';
+    document.getElementById('cat-modal').classList.remove('hidden');
+    document.getElementById('cat-modal').classList.add('flex');
+}
+function editCat(id, name, imageUrl) {
+    document.getElementById('cat-modal-title').textContent = 'แก้ไขหมวดหมู่';
+    document.getElementById('cat-edit-id').value = id;
+    document.getElementById('cat-name').value = name;
+    document.getElementById('cat-image').value = imageUrl || '';
+    const prev = document.getElementById('cat-image-preview');
+    if (imageUrl) { prev.src = imageUrl; prev.classList.remove('hidden'); }
+    else prev.classList.add('hidden');
+    document.getElementById('cat-image-file').value = '';
+    document.getElementById('cat-modal').classList.remove('hidden');
+    document.getElementById('cat-modal').classList.add('flex');
+}
+async function uploadCatImage(input) {
+    if (!input.files || !input.files[0]) return;
+    const fd = new FormData();
+    fd.append('file', input.files[0]);
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.success) {
+        document.getElementById('cat-image').value = data.url;
+        const prev = document.getElementById('cat-image-preview');
+        prev.src = data.url;
+        prev.classList.remove('hidden');
+    } else alert(data.message || 'อัปโหลดไม่สำเร็จ');
+}
+function closeCatModal() {
+    document.getElementById('cat-modal').classList.add('hidden');
+    document.getElementById('cat-modal').classList.remove('flex');
+}
+async function saveCat() {
+    const id = document.getElementById('cat-edit-id').value;
+    const name = document.getElementById('cat-name').value.trim();
+    if (!name) { alert('กรุณากรอกชื่อหมวดหมู่'); return; }
+    const url = id ? '/api/categories/' + id : '/api/categories';
+    const res = await fetch(url, {
+        method: id ? 'PUT' : 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name, image_url: document.getElementById('cat-image').value})
+    });
+    if (res.ok) location.reload();
+    else alert('เกิดข้อผิดพลาด');
+}
+async function deleteCat(id) {
+    if (!confirm('ลบหมวดหมู่นี้? สินค้าในหมวดจะถูกย้ายออก (ไม่ถูกลบ)')) return;
+    const res = await fetch('/api/categories/' + id, {method: 'DELETE'});
+    if (res.ok) location.reload();
+}
+function toggleStockField() {
+    const sel = document.getElementById('f-cat');
+    const name = sel.options[sel.selectedIndex]?.text || '';
+    const tracked = ['อาหารทานเล่น','มิกซ์เซอร์','เบียร์','เหล้า'].includes(name);
+    const field = document.getElementById('stock-field');
+    if (field) field.classList.toggle('hidden', !tracked);
+}
+function openItemModal() {
+    document.getElementById('item-modal-title').textContent = 'เพิ่มสินค้า';
+    document.getElementById('item-edit-id').value = '';
+    document.getElementById('f-name').value = '';
+    document.getElementById('f-desc').value = '';
+    document.getElementById('f-price').value = '';
+    document.getElementById('f-cost').value = '';
+    document.getElementById('f-cat').value = '';
+    document.getElementById('f-available').checked = true;
+    document.getElementById('f-image').value = '';
+    document.getElementById('f-image-preview').classList.add('hidden');
+    document.getElementById('f-image-file').value = '';
+    const stockField = document.getElementById('stock-field');
+    if (stockField) stockField.classList.add('hidden');
+    const stockInput = document.getElementById('f-stock');
+    if (stockInput) stockInput.value = '';
+    document.getElementById('item-modal').classList.remove('hidden');
+    document.getElementById('item-modal').classList.add('flex');
+}
+async function uploadImage(input) {
+    if (!input.files || !input.files[0]) return;
+    const fd = new FormData();
+    fd.append('file', input.files[0]);
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.success) {
+        document.getElementById('f-image').value = data.url;
+        const prev = document.getElementById('f-image-preview');
+        prev.src = data.url;
+        prev.classList.remove('hidden');
+    } else alert(data.message || 'อัปโหลดไม่สำเร็จ');
+}
+function editItem(id, name, desc, price, catId, available, imageUrl, stockQty) {
+    document.getElementById('item-modal-title').textContent = 'แก้ไขสินค้า';
+    document.getElementById('item-edit-id').value = id;
+    document.getElementById('f-name').value = name;
+    document.getElementById('f-desc').value = desc;
+    document.getElementById('f-price').value = price;
+    document.getElementById('f-cat').value = catId || '';
+    document.getElementById('f-available').checked = available;
+    document.getElementById('f-image').value = imageUrl || '';
+    const prev = document.getElementById('f-image-preview');
+    if (imageUrl) { prev.src = imageUrl; prev.classList.remove('hidden'); }
+    else prev.classList.add('hidden');
+    document.getElementById('f-image-file').value = '';
+    toggleStockField();
+    const stockInput = document.getElementById('f-stock');
+    if (stockInput) stockInput.value = (stockQty !== undefined && stockQty !== null) ? stockQty : '';
+    document.getElementById('item-modal').classList.remove('hidden');
+    document.getElementById('item-modal').classList.add('flex');
+}
+function closeItemModal() {
+    document.getElementById('item-modal').classList.add('hidden');
+    document.getElementById('item-modal').classList.remove('flex');
+}
+async function saveItem() {
+    const id = document.getElementById('item-edit-id').value;
+    const stockField = document.getElementById('stock-field');
+    const stockVal = document.getElementById('f-stock') ? document.getElementById('f-stock').value : '';
+    const payload = {
+        name: document.getElementById('f-name').value,
+        description: document.getElementById('f-desc').value,
+        price: document.getElementById('f-price').value,
+        cost_price: (document.getElementById('f-cost')||{}).value || 0,
+        category_id: document.getElementById('f-cat').value || null,
+        is_available: document.getElementById('f-available').checked,
+        image_url: document.getElementById('f-image') ? document.getElementById('f-image').value : '',
+        stock_qty: (stockField && !stockField.classList.contains('hidden')) ? (stockVal === '' ? null : stockVal) : null
+    };
+    if (!payload.name || !payload.price) {
+        alert('กรุณากรอกชื่อและราคา');
+        return;
+    }
+    const url = id ? '/api/menu/' + id : '/api/menu';
+    const res = await fetch(url, {
+        method: id ? 'PUT' : 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    });
+    if (res.ok) location.reload();
+    else alert('เกิดข้อผิดพลาด');
+}
+async function deleteItem(id) {
+    if (!confirm('ต้องการลบสินค้านี้ใช่ไหม?')) return;
+    const res = await fetch('/api/menu/' + id, {method: 'DELETE'});
+    if (res.ok) {
+        const row = document.getElementById('row-' + id);
+        if (row) row.remove();
+    }
+}
+</script>
+{% endblock %}

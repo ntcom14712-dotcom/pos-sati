@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}จัดการโต๊ะ + QR Code - สติๆ{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex">
+    <aside class="w-64 bg-gray-900 text-white flex-shrink-0 hidden md:block relative">
+        <div class="p-5 border-b border-gray-700">
+            <h1 class="text-xl font-bold">🍽️ สติๆ</h1>
+        </div>
+        <nav class="p-3 space-y-1">
+            <a href="/admin" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📊 แดชบอร์ด</a>
+            <a href="/admin/orders" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🧾 ออเดอร์</a>
+            <a href="/admin/pos" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🛒 สั่งออเดอร์</a>
+            <a href="/kitchen" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🍳 หน้าครัว</a>
+            <a href="/admin/menu" data-admin-only class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📋 จัดการเมนู</a>
+            <a href="/admin/products" data-admin-only class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📦 สินค้าและหมวดหมู่</a>
+            <a href="/admin/stock" data-admin-only class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📊 สต็อก</a>
+            <a href="/admin/tables" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-orange-500 text-white">🪑 จัดการโต๊ะ</a>
+            <a href="/admin/printers" data-admin-only class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🖨️ เครื่องพิมพ์</a>
+                    <a href="/admin/shift" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🕐 เปิด/ปิดกะ</a>
+            <a href="/admin/reports" data-admin-only class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📈 สถิติยอดขาย</a>
+            <a href="/admin/settings" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">⚙️ ตั้งค่า</a>
+        </nav>
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-700">
+            <div class="text-sm text-gray-300 mb-2">👤 {{ current_user.name if current_user else 'พนักงาน' }}</div>
+            <a href="/logout" class="block text-center text-sm bg-gray-800 hover:bg-gray-700 py-2 rounded-lg text-gray-300">ออกจากระบบ</a>
+        </div>
+    </aside>
+
+    <main class="flex-1 p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">จัดการโต๊ะ + QR Code</h1>
+            <button onclick="addTable()" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium">
+                + เพิ่มโต๊ะ
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {% for table in tables if table.is_active %}
+            <div class="bg-white rounded-xl border shadow-sm p-4 text-center" id="table-{{ table.id }}">
+                <h3 class="font-bold text-lg mb-2">{{ table.name }}</h3>
+                <img src="{{ qr_codes[table.code] }}" alt="QR {{ table.name }}" class="mx-auto w-40 h-40 border rounded-lg mb-2">
+                <p class="text-xs text-gray-500 mb-1">รหัส: {{ table.code }}</p>
+                <a href="/order/{{ table.code }}" target="_blank" class="text-sm text-blue-600 hover:underline block mb-3">
+                    เปิดหน้าลูกค้า
+                </a>
+                <div class="flex gap-2 justify-center">
+                    <button onclick="printQR('{{ table.name }}', '{{ qr_codes[table.code] }}')" class="text-sm px-3 py-1 bg-gray-100 rounded hover:bg-gray-200">
+                        พิมพ์ QR
+                    </button>
+                    <button onclick="deleteTable({{ table.id }})" class="text-sm px-3 py-1 text-red-600 hover:bg-red-50 rounded">
+                        ลบ
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+</div>
+
+<!-- Print area (hidden) -->
+<div id="print-area" class="hidden"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+fetch('/api/me').then(r=>r.json()).then(me=>{
+  if(!me.is_admin) document.querySelectorAll('[data-admin-only]').forEach(el=>el.classList.add('hidden'));
+}).catch(()=>{});
+</script>
+
+<script>
+async function addTable() {
+    const name = prompt('ชื่อโต๊ะ (เช่น โต๊ะ 9)');
+    if (!name) return;
+    const res = await fetch('/api/tables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+    });
+    if (res.ok) location.reload();
+    else alert('เพิ่มโต๊ะไม่สำเร็จ');
+}
+
+async function deleteTable(id) {
+    if (!confirm('ต้องการปิดใช้งานโต๊ะนี้ใช่ไหม?')) return;
+    const res = await fetch(`/api/tables/${id}`, { method: 'DELETE' });
+    if (res.ok) document.getElementById(`table-${id}`).remove();
+}
+
+function printQR(name, qrDataUrl) {
+    const win = window.open('', '_blank');
+    win.document.write(`
+        <html>
+        <head><title>QR Code - ${name}</title>
+        <style>
+            body { font-family: sans-serif; text-align: center; padding: 40px; }
+            img { width: 280px; height: 280px; }
+            h1 { margin-bottom: 10px; }
+        </style>
+        </head>
+        <body>
+            <h1>${name}</h1>
+            <p>สแกนเพื่อสั่งอาหาร</p>
+            <img src="${qrDataUrl}">
+            <script>window.onload = () => window.print();<\/script>
+        </body>
+        </html>
+    `);
+    win.document.close();
+}
+</script>
+{% endblock %}

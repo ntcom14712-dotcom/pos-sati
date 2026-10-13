@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}จัดการสต็อก - สติๆ{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex">
+    <aside class="w-64 bg-gray-900 text-white flex-shrink-0 hidden md:block relative">
+        <div class="p-5 border-b border-gray-700">
+            <h1 class="text-xl font-bold">🍽️ สติๆ</h1>
+        </div>
+        <nav class="p-3 space-y-1">
+            <a href="/admin" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📊 แดชบอร์ด</a>
+            <a href="/admin/orders" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🧾 ออเดอร์</a>
+            <a href="/admin/pos" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🛒 สั่งออเดอร์</a>
+            <a href="/kitchen" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🍳 หน้าครัว</a>
+            <a href="/admin/menu" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📋 จัดการเมนู</a>
+            <a href="/admin/products" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📦 จัดการสินค้า</a>
+            <a href="/admin/stock" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-orange-500 text-white">📊 สต็อก</a>
+            <a href="/admin/tables" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🪑 จัดการโต๊ะ</a>
+            <a href="/admin/printers" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🖨️ เครื่องพิมพ์</a>
+            <a href="/admin/shift" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🕐 เปิด/ปิดกะ</a>
+            <a href="/admin/reports" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📈 สถิติยอดขาย</a>
+            <a href="/admin/settings" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">⚙️ ตั้งค่า</a>
+        </nav>
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-700">
+            <div class="text-sm text-gray-300 mb-2">👤 {{ current_user.name if current_user else 'พนักงาน' }}</div>
+            <a href="/logout" class="block text-center text-sm bg-gray-800 hover:bg-gray-700 py-2 rounded-lg text-gray-300">ออกจากระบบ</a>
+        </div>
+    </aside>
+
+    <main class="flex-1 p-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">📊 จัดการสต็อก</h1>
+            <p class="text-sm text-gray-500">เฉพาะหมวด: อาหารทานเล่น, มิกซ์เซอร์, เบียร์, เหล้า</p>
+        </div>
+
+        <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="px-4 py-3">สินค้า</th>
+                        <th class="px-4 py-3">หมวดหมู่</th>
+                        <th class="px-4 py-3">สต็อกปัจจุบัน</th>
+                        <th class="px-4 py-3">ปรับสต็อก</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr class="border-b hover:bg-gray-50" id="row-{{ item.id }}">
+                        <td class="px-4 py-3 font-medium">{{ item.name }}</td>
+                        <td class="px-4 py-3 text-gray-500">{{ item.category.name if item.category else '-' }}</td>
+                        <td class="px-4 py-3">
+                            <span id="qty-{{ item.id }}" class="font-bold {% if item.stock_qty is not none and item.stock_qty < 2 %}text-red-600{% else %}text-green-600{% endif %}">
+                                {{ item.stock_qty if item.stock_qty is not none else 'ไม่ติดตาม' }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center gap-2">
+                                <input type="number" min="0" id="input-{{ item.id }}" value="{{ item.stock_qty if item.stock_qty is not none else '' }}" class="w-24 border rounded-lg px-2 py-1 text-sm" placeholder="จำนวน">
+                                <button onclick="saveStock({{ item.id }})" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-sm">บันทึก</button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">ยังไม่มีสินค้าในหมวดที่ติดตามสต็อก</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="text-xs text-gray-400 mt-3">เหลือน้อยกว่า 2 จะแจ้งเตือนในหน้าออเดอร์และแดชบอร์ด</p>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function saveStock(id) {
+    const val = document.getElementById('input-' + id).value;
+    const qty = val === '' ? null : parseInt(val, 10);
+    if (qty !== null && (isNaN(qty) || qty < 0)) { alert('จำนวนไม่ถูกต้อง'); return; }
+    const res = await fetch('/api/stock/' + id, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({stock_qty: qty})
+    });
+    const data = await res.json();
+    if (data.success) {
+        const el = document.getElementById('qty-' + id);
+        el.textContent = data.stock_qty !== null ? data.stock_qty : 'ไม่ติดตาม';
+        el.className = 'font-bold ' + (data.stock_qty !== null && data.stock_qty < 2 ? 'text-red-600' : 'text-green-600');
+        alert('บันทึกสต็อกเรียบร้อย');
+    } else {
+        alert(data.message || 'เกิดข้อผิดพลาด');
+    }
+}
+</script>
+{% endblock %}

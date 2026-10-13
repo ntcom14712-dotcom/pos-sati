@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}แดชบอร์ด - สติๆ{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-gray-900 text-white flex-shrink-0 hidden md:block relative">
+        <div class="p-5 border-b border-gray-700">
+            <h1 class="text-xl font-bold">🍽️ สติๆ</h1>
+            <p class="text-xs text-gray-400 mt-1">ระบบสั่งอาหาร</p>
+        </div>
+                <nav class="p-3 space-y-1">
+            <a href="/admin" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-orange-500 text-white">
+                <span>📊</span> แดชบอร์ด
+            </a>
+            <a href="/admin/orders" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">
+                <span>🧾</span> ออเดอร์ / แคชเชียร์
+            </a>
+            <a href="/admin/pos" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">
+                <span>🛒</span> สั่งออเดอร์
+            </a>
+            <a href="/kitchen" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">
+                <span>🍳</span> หน้าครัว
+            </a>
+            <a href="/admin/menu" data-admin-only class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">
+                <span>📋</span> จัดการเมนู
+            </a>
+            <a href="/admin/products" data-admin-only class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">
+                <span>📦</span> จัดการสินค้า
+            </a>
+            <a href="/admin/stock" data-admin-only class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">
+                <span>📊</span> สต็อก
+            </a>
+            <a href="/admin/tables" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">
+                <span>🪑</span> จัดการโต๊ะ + QR
+            </a>
+            <a href="/admin/printers" data-admin-only class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">
+                <span>🖨️</span> เครื่องพิมพ์
+            </a>
+            <a href="/admin/shift" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">
+                <span>🕐</span> เปิด/ปิดกะ
+            </a>
+            <a href="/admin/settings" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">⚙️ ตั้งค่า</a>
+            <a href="/admin/reports" data-admin-only class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">
+                <span>📈</span> สถิติยอดขาย
+            </a>
+        </nav>
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-700">
+            <div class="text-sm text-gray-300 mb-2">👤 {{ current_user.name if current_user else 'พนักงาน' }}</div>
+            <a href="/logout" class="block text-center text-sm bg-gray-800 hover:bg-gray-700 py-2 rounded-lg text-gray-300">ออกจากระบบ</a>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="flex-1 p-6">
+        <div id="low-stock-dash" class="hidden mb-4 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm"></div>
+        <p class="text-sm text-gray-500 mb-6">สรุปภาพรวมร้านวันนี้</p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 card">
+                <div class="flex items-center justify-between">
+                    <p class="text-sm text-gray-500">ออเดอร์รอดำเนินการ</p>
+                    <span class="text-2xl">⏳</span>
+                </div>
+                <p class="text-3xl font-extrabold text-orange-500 mt-2">{{ pending }}</p>
+            </div>
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 card">
+                <div class="flex items-center justify-between">
+                    <p class="text-sm text-gray-500">ออเดอร์วันนี้</p>
+                    <span class="text-2xl">📋</span>
+                </div>
+                <p class="text-3xl font-extrabold text-blue-500 mt-2">{{ today_orders }}</p>
+            </div>
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 card">
+                <div class="flex items-center justify-between">
+                    <p class="text-sm text-gray-500">รายได้วันนี้</p>
+                    <span class="text-2xl">💰</span>
+                </div>
+                <p class="text-3xl font-extrabold text-green-500 mt-2">฿{{ "%.0f"|format(today_revenue) }}</p>
+            </div>
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 card">
+                <div class="flex items-center justify-between">
+                    <p class="text-sm text-gray-500">จำนวนโต๊ะ</p>
+                    <span class="text-2xl">🪑</span>
+                </div>
+                <p class="text-3xl font-extrabold text-purple-500 mt-2">{{ tables_count }}</p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <h2 class="font-bold text-lg mb-4">ทางลัด</h2>
+            <div class="flex flex-wrap gap-3">
+                <a href="/admin/orders" class="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium shadow-sm">ดูออเดอร์</a>
+                <a href="/admin/pos" class="px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-medium">สั่งออเดอร์</a>
+                <a href="/kitchen" class="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium">เปิดหน้าครัว</a>
+                <a href="/admin/tables" class="px-5 py-2.5 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium">พิมพ์ QR Code</a>
+                <a href="/order/table01" target="_blank" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium">ทดลองหน้าลูกค้า</a>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+fetch('/api/stock/low').then(r=>r.json()).then(items=>{
+  const el = document.getElementById('low-stock-dash');
+  if (items.length && el) {
+    el.innerHTML = '⚠️ สต็อกเหลือน้อยกว่า 2: ' + items.map(i => i.name + ' (' + i.category + ') เหลือ ' + i.stock).join(' · ');
+    el.classList.remove('hidden');
+  }
+}).catch(()=>{});
+fetch('/api/me').then(r=>r.json()).then(me=>{
+  if(!me.is_admin) document.querySelectorAll('[data-admin-only]').forEach(el=>el.classList.add('hidden'));
+}).catch(()=>{});
+</script>
+{% endblock %}

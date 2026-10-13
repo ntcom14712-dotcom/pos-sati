@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+{% block title %}ตั้งค่า - สติๆ{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex">
+    <aside class="w-64 bg-gray-900 text-white flex-shrink-0 hidden md:block relative">
+        <div class="p-5 border-b border-gray-700"><h1 class="text-xl font-bold">🍽️ สติๆ</h1></div>
+        <nav class="p-3 space-y-1">
+            <a href="/admin" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📊 แดชบอร์ด</a>
+            <a href="/admin/orders" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🧾 ออเดอร์</a>
+            <a href="/admin/pos" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🛒 สั่งออเดอร์</a>
+            <a href="/kitchen" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🍳 หน้าครัว</a>
+            <a href="/admin/menu" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📋 จัดการเมนู</a>
+            <a href="/admin/products" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📦 สินค้าและหมวดหมู่</a>
+            <a href="/admin/stock" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📊 สต็อก</a>
+            <a href="/admin/tables" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🪑 จัดการโต๊ะ</a>
+            <a href="/admin/printers" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🖨️ เครื่องพิมพ์</a>
+            <a href="/admin/shift" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🕐 เปิด/ปิดกะ</a>
+            <a href="/admin/reports" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📈 สถิติยอดขาย</a>
+            <a href="/admin/settings" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-orange-500 text-white">⚙️ ตั้งค่า</a>
+        </nav>
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-700">
+            <div class="text-sm text-gray-300 mb-2">👤 {{ current_user.name if current_user else '' }}</div>
+            <a href="/logout" class="block text-center text-sm bg-gray-800 hover:bg-gray-700 py-2 rounded-lg text-gray-300">ออกจากระบบ</a>
+        </div>
+    </aside>
+
+    <main class="flex-1 p-6 max-w-4xl">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6">⚙️ ตั้งค่า</h1>
+
+        <!-- ผู้ใช้และสิทธิ์ -->
+        <div class="bg-white rounded-xl border shadow-sm p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="font-bold text-lg">👥 ผู้ใช้และสิทธิ์</h2>
+                    <p class="text-sm text-gray-500">Admin เข้าได้ทุกเมนู · พนักงานเข้าได้เฉพาะแดชบอร์ด / สั่งออเดอร์ / โต๊ะ / กะ (ห้ามแก้บิล)</p>
+                </div>
+                <button onclick="openUserModal()" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm">+ เพิ่มผู้ใช้</button>
+            </div>
+            <div id="users-list" class="overflow-x-auto">
+                <p class="text-gray-400 text-sm">กำลังโหลด...</p>
+            </div>
+        </div>
+
+        <!-- หัวบิล / ใบเสร็จ -->
+        <div class="bg-white rounded-xl border shadow-sm p-6 mb-6">
+            <h2 class="font-bold text-lg mb-1">🧾 หัวบิล / ใบเสร็จ (กระดาษ 80mm)</h2>
+            <p class="text-sm text-gray-500 mb-4">ข้อมูลนี้จะแสดงบนใบเสร็จเมื่อพิมพ์</p>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs text-gray-500">ชื่อร้าน</label>
+                    <input id="set-shop-name" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="ชื่อร้าน">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-500">ที่อยู่</label>
+                    <input id="set-shop-address" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="ที่อยู่ร้าน">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-500">เบอร์โทร</label>
+                    <input id="set-shop-phone" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="0x-xxxx-xxxx">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-500">เลขผู้เสียภาษี (ถ้ามี)</label>
+                    <input id="set-shop-tax" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="เลขประจำตัวผู้เสียภาษี">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-500">ข้อความท้ายบิล</label>
+                    <input id="set-footer" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="ขอบคุณที่ใช้บริการ">
+                </div>
+                <button onclick="saveReceiptSettings()" class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium">บันทึกหัวบิล</button>
+                <span id="save-msg" class="text-sm text-green-600 ml-2 hidden">บันทึกแล้ว ✓</span>
+            </div>
+        </div>
+
+        <!-- ลิงก์ไปหน้าตั้งค่าอื่น -->
+        <div class="bg-white rounded-xl border shadow-sm p-6">
+            <h2 class="font-bold text-lg mb-4">🔗 ตั้งค่าอื่นๆ</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <a href="/admin/printers" class="flex items-center gap-3 p-4 border rounded-xl hover:bg-gray-50">
+                    <span class="text-2xl">🖨️</span>
+                    <div>
+                        <div class="font-medium">เครื่องพิมพ์ / สถานี</div>
+                        <div class="text-xs text-gray-500">ครัว · บาร์ · แคชเชียร์</div>
+                    </div>
+                </a>
+                <a href="/admin/tables" class="flex items-center gap-3 p-4 border rounded-xl hover:bg-gray-50">
+                    <span class="text-2xl">🪑</span>
+                    <div>
+                        <div class="font-medium">โต๊ะ + QR Code</div>
+                        <div class="text-xs text-gray-500">เพิ่ม/ลบโต๊ะ สร้าง QR</div>
+                    </div>
+                </a>
+                <a href="/admin/products" class="flex items-center gap-3 p-4 border rounded-xl hover:bg-gray-50">
+                    <span class="text-2xl">📦</span>
+                    <div>
+                        <div class="font-medium">สินค้าและหมวดหมู่</div>
+                        <div class="text-xs text-gray-500">เมนู · ราคา · ต้นทุน</div>
+                    </div>
+                </a>
+                <a href="/admin/shift" class="flex items-center gap-3 p-4 border rounded-xl hover:bg-gray-50">
+                    <span class="text-2xl">🕐</span>
+                    <div>
+                        <div class="font-medium">เปิด/ปิดกะ</div>
+                        <div class="text-xs text-gray-500">เงินสดต้นกะ · สรุปกะ</div>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- User Modal -->
+<div id="user-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+        <div class="flex items-center justify-between mb-4">
+            <h2 id="user-modal-title" class="text-lg font-bold">เพิ่มผู้ใช้</h2>
+            <button onclick="closeUserModal()" class="text-2xl text-gray-400">&times;</button>
+        </div>
+        <input type="hidden" id="user-id">
+        <div class="space-y-3">
+            <div>
+                <label class="text-xs text-gray-500">ชื่อผู้ใช้ (login)</label>
+                <input id="user-username" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="username">
+            </div>
+            <div>
+                <label class="text-xs text-gray-500">ชื่อที่แสดง</label>
+                <input id="user-name" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="ชื่อพนักงาน">
+            </div>
+            <div>
+                <label class="text-xs text-gray-500">รหัสผ่าน</label>
+                <input id="user-password" type="password" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="รหัสผ่าน">
+                <p id="pwd-hint" class="text-xs text-gray-400 mt-1 hidden">เว้นว่างถ้าไม่ต้องการเปลี่ยน</p>
+            </div>
+            <div>
+                <label class="text-xs text-gray-500">บทบาท / สิทธิ์</label>
+                <select id="user-role" class="w-full border rounded-lg px-3 py-2 text-sm">
+                    <option value="staff">พนักงาน (แดชบอร์ด · สั่งออเดอร์ · โต๊ะ · กะ · ดูออเดอร์)</option>
+                    <option value="admin">Admin (ทุกเมนู + แก้บิล)</option>
+                    <option value="kitchen">ครัว (หน้าครัวอย่างเดียว)</option>
+                    <option value="cashier">แคชเชียร์ (เหมือนพนักงาน)</option>
+                </select>
+            </div>
+            <button onclick="saveUser()" class="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-lg text-sm font-medium">บันทึก</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const roleLabel = {
+    admin: 'Admin',
+    staff: 'พนักงาน',
+    kitchen: 'ครัว',
+    cashier: 'แคชเชียร์'
+};
+
+async function loadUsers() {
+    const res = await fetch('/api/users');
+    if (!res.ok) {
+        document.getElementById('users-list').innerHTML = '<p class="text-red-500 text-sm">ไม่มีสิทธิ์ดูรายชื่อผู้ใช้</p>';
+        return;
+    }
+    const users = await res.json();
+    document.getElementById('users-list').innerHTML = `
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-gray-500 border-b">
+                    <th class="py-2">ชื่อ</th>
+                    <th class="py-2">Username</th>
+                    <th class="py-2">บทบาท</th>
+                    <th class="py-2">สถานะ</th>
+                    <th class="py-2 text-right">จัดการ</th>
+                </tr>
+            </thead>
+            <tbody>
+            ${users.map(u => `
+                <tr class="border-b last:border-0">
+                    <td class="py-2.5 font-medium">${u.name}</td>
+                    <td class="py-2.5 text-gray-600">${u.username}</td>
+                    <td class="py-2.5"><span class="text-xs px-2 py-0.5 rounded-full ${u.role==='admin'?'bg-orange-100 text-orange-700':'bg-gray-100 text-gray-700'}">${roleLabel[u.role]||u.role}</span></td>
+                    <td class="py-2.5">${u.is_active ? '<span class="text-green-600">ใช้งาน</span>' : '<span class="text-red-500">ปิด</span>'}</td>
+                    <td class="py-2.5 text-right whitespace-nowrap">
+                        <button onclick='editUser(${JSON.stringify(u)})' class="text-blue-600 hover:underline mr-2">แก้ไข</button>
+                        <button onclick="toggleUser(${u.id}, ${u.is_active ? 'false' : 'true'})" class="text-gray-600 hover:underline mr-2">${u.is_active ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}</button>
+                        <button onclick="deleteUser(${u.id})" class="text-red-600 hover:underline">ลบ</button>
+                    </td>
+                </tr>
+            `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+function openUserModal() {
+    document.getElementById('user-modal-title').textContent = 'เพิ่มผู้ใช้';
+    document.getElementById('user-id').value = '';
+    document.getElementById('user-username').value = '';
+    document.getElementById('user-username').disabled = false;
+    document.getElementById('user-name').value = '';
+    document.getElementById('user-password').value = '';
+    document.getElementById('user-password').placeholder = 'รหัสผ่าน';
+    document.getElementById('pwd-hint').classList.add('hidden');
+    document.getElementById('user-role').value = 'staff';
+    const m = document.getElementById('user-modal');
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+}
+
+function editUser(u) {
+    document.getElementById('user-modal-title').textContent = 'แก้ไขผู้ใช้';
+    document.getElementById('user-id').value = u.id;
+    document.getElementById('user-username').value = u.username;
+    document.getElementById('user-username').disabled = true;
+    document.getElementById('user-name').value = u.name;
+    document.getElementById('user-password').value = '';
+    document.getElementById('user-password').placeholder = 'รหัสผ่านใหม่';
+    document.getElementById('pwd-hint').classList.remove('hidden');
+    document.getElementById('user-role').value = u.role;
+    const m = document.getElementById('user-modal');
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+}
+
+function closeUserModal() {
+    document.getElementById('user-modal').classList.add('hidden');
+    document.getElementById('user-modal').classList.remove('flex');
+}
+
+async function saveUser() {
+    const id = document.getElementById('user-id').value;
+    const body = {
+        name: document.getElementById('user-name').value,
+        role: document.getElementById('user-role').value,
+        password: document.getElementById('user-password').value,
+    };
+    let res;
+    if (id) {
+        res = await fetch('/api/users/' + id, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
+        });
+    } else {
+        body.username = document.getElementById('user-username').value;
+        if (!body.password) { alert('กรุณาใส่รหัสผ่าน'); return; }
+        res = await fetch('/api/users', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
+        });
+    }
+    const data = await res.json();
+    if (!data.success) { alert(data.message || 'บันทึกไม่สำเร็จ'); return; }
+    closeUserModal();
+    loadUsers();
+}
+
+async function toggleUser(id, active) {
+    const res = await fetch('/api/users/' + id, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ is_active: active })
+    });
+    const data = await res.json();
+    if (!data.success) alert(data.message || 'ไม่สำเร็จ');
+    loadUsers();
+}
+
+async function deleteUser(id) {
+    if (!confirm('ยืนยันลบผู้ใช้นี้?')) return;
+    const res = await fetch('/api/users/' + id, { method: 'DELETE' });
+    const data = await res.json();
+    if (!data.success) alert(data.message || 'ลบไม่สำเร็จ');
+    loadUsers();
+}
+
+async function loadSettings() {
+    const res = await fetch('/api/settings');
+    const s = await res.json();
+    document.getElementById('set-shop-name').value = s.shop_name || '';
+    document.getElementById('set-shop-address').value = s.shop_address || '';
+    document.getElementById('set-shop-phone').value = s.shop_phone || '';
+    document.getElementById('set-shop-tax').value = s.shop_tax_id || '';
+    document.getElementById('set-footer').value = s.receipt_footer || '';
+}
+
+async function saveReceiptSettings() {
+    await fetch('/api/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            shop_name: document.getElementById('set-shop-name').value,
+            shop_address: document.getElementById('set-shop-address').value,
+            shop_phone: document.getElementById('set-shop-phone').value,
+            shop_tax_id: document.getElementById('set-shop-tax').value,
+            receipt_footer: document.getElementById('set-footer').value,
+        })
+    });
+    const msg = document.getElementById('save-msg');
+    msg.classList.remove('hidden');
+    setTimeout(() => msg.classList.add('hidden'), 2000);
+}
+
+loadSettings();
+loadUsers();
+</script>
+{% endblock %}

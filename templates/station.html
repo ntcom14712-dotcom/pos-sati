@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}{{ station.name }} - สติๆ{% endblock %}
+{% block content %}
+<div class="min-h-screen bg-gray-900 text-white p-4">
+    <div class="flex items-center justify-between mb-4">
+        <div>
+            <h1 class="text-2xl font-bold">
+                {% if station.station_type=='kitchen' %}🍳{% elif station.station_type=='bar' %}🍹{% else %}🧾{% endif %}
+                {{ station.name }}
+            </h1>
+            <p class="text-sm text-gray-400">แสดงเฉพาะสินค้าของสถานีนี้</p>
+        </div>
+        <div class="flex items-center gap-4">
+            <span class="text-sm text-gray-400">👤 {{ current_user.name if current_user else '' }}</span>
+            <a href="/admin/printers" class="text-sm text-gray-400 hover:text-white">← จัดการสถานี</a>
+            <a href="/logout" class="text-sm text-red-400">ออกจากระบบ</a>
+            <div class="flex items-center gap-2 text-sm text-gray-400">
+                <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                อัปเดตทุก 4 วินาที
+            </div>
+        </div>
+    </div>
+    <div id="orders" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const stationId = {{ station.id }};
+const statusLabel = {pending:'ใหม่', preparing:'กำลังทำ', ready:'พร้อม'};
+const statusBorder = {pending:'border-yellow-400', preparing:'border-blue-400', ready:'border-green-400'};
+
+async function load() {
+    const res = await fetch('/api/station/' + stationId + '/orders');
+    const orders = await res.json();
+    const el = document.getElementById('orders');
+    if (!orders.length) {
+        el.innerHTML = '<p class="col-span-full text-center text-gray-500 py-20 text-xl">ไม่มีออเดอร์ 🎉</p>';
+        return;
+    }
+    el.innerHTML = orders.map(o => `
+        <div class="bg-gray-800 rounded-xl border-l-4 ${statusBorder[o.status]||'border-gray-500'} p-4">
+            <div class="flex justify-between mb-2">
+                <div>
+                    <span class="text-2xl font-bold">#${o.id}</span>
+                    <span class="ml-2 text-lg text-orange-400">${o.table_name}</span>
+                </div>
+                <span class="text-sm px-2 py-1 rounded bg-gray-700">${statusLabel[o.status]||o.status} · ${o.created_at}</span>
+            </div>
+            <ul class="space-y-2 my-3">
+                ${o.items.map(i => `
+                    <li class="flex items-start gap-2">
+                        <span class="bg-orange-500 text-white text-sm font-bold w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0">${i.quantity}</span>
+                        <div>
+                            <span class="font-medium text-lg">${i.name}</span>
+                            ${i.note ? `<div class="text-yellow-400 text-sm">↳ ${i.note}</div>` : ''}
+                        </div>
+                    </li>
+                `).join('')}
+            </ul>
+            ${o.note ? `<p class="text-yellow-400 text-sm mb-3">📝 ${o.note}</p>` : ''}
+            <div class="flex gap-2">
+                <button onclick="printTicket(${o.id})" class="flex-1 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg text-sm">🖨️ พิมพ์</button>
+                ${o.status==='pending' ? `<button onclick="setStatus(${o.id},'preparing')" class="flex-1 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium">เริ่มทำ</button>` : ''}
+                ${o.status==='preparing' ? `<button onclick="setStatus(${o.id},'ready')" class="flex-1 py-2 bg-green-600 hover:bg-green-500 rounded-lg font-medium">พร้อม</button>` : ''}
+                ${o.status==='ready' ? `<button onclick="setStatus(${o.id},'completed')" class="flex-1 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg font-medium">เสร็จ</button>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+async function setStatus(id, status) {
+    await fetch('/api/orders/' + id + '/status', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status})
+    });
+    load();
+}
+
+async function printTicket(orderId) {
+    const res = await fetch('/api/orders/' + orderId + '/tickets');
+    const tickets = await res.json();
+    // print only this station's ticket
+    const ticket = tickets.find(t => t.station_id === stationId) || tickets[0];
+    if (!ticket) { alert('ไม่มีรายการสำหรับสถานีนี้'); return; }
+    const win = window.open('', '_blank');
+    win.document.write(`
+        <html><head><title>${ticket.station_name} #${ticket.order_id}</title>
+        <style>
+            body{font-family:sans-serif;padding:16px;max-width:280px;margin:0 auto}
+            h2{margin:0 0 4px;text-align:center}
+            .meta{text-align:center;color:#555;font-size:13px;margin-bottom:12px}
+            .item{display:flex;gap:8px;margin:6px 0;font-size:16px}
+            .qty{font-weight:bold;min-width:24px}
+            .note{color:#c60;font-size:13px;margin-left:32px}
+            hr{border:none;border-top:1px dashed #999;margin:12px 0}
+        </style></head><body>
+        <h2>${ticket.station_name}</h2>
+        <div class="meta">ออเดอร์ #${ticket.order_id} · ${ticket.table_name}<br>${ticket.created_at}</div>
+        <hr>
+        ${ticket.items.map(i => `
+            <div class="item"><span class="qty">${i.quantity}x</span><span>${i.name}</span></div>
+            ${i.note ? `<div class="note">↳ ${i.note}</div>` : ''}
+        `).join('')}
+        ${ticket.note ? `<hr><div class="note">📝 ${ticket.note}</div>` : ''}
+        <hr>
+        <p style="text-align:center;font-size:12px;color:#888">สติๆ</p>
+        <script>window.onload=()=>{window.print();setTimeout(()=>window.close(),300)}<\/script>
+        </body></html>
+    `);
+    win.document.close();
+}
+
+load();
+setInterval(load, 4000);
+</script>
+{% endblock %}

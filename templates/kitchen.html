@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}หน้าครัว - สติๆ{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-900 text-white p-4">
+    <div class="flex items-center justify-between mb-4">
+        <h1 class="text-2xl font-bold">🍳 หน้าครัว</h1>
+        <div class="flex items-center gap-4">
+            <span class="text-sm text-gray-400">👤 {{ current_user.name if current_user else 'พนักงาน' }}</span>
+            <a href="/admin" class="text-sm text-gray-400 hover:text-white">← กลับแอดมิน</a>
+            <a href="/logout" class="text-sm text-red-400 hover:text-red-300">ออกจากระบบ</a>
+            <div class="flex items-center gap-2 text-sm text-gray-400">
+                <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                อัปเดตทุก 4 วินาที
+            </div>
+        </div>
+    </div>
+
+    <div id="kitchen-orders" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <!-- filled by JS -->
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const statusLabel = {
+    pending: 'ใหม่',
+    preparing: 'กำลังทำ',
+    ready: 'พร้อม'
+};
+const statusBorder = {
+    pending: 'border-yellow-400',
+    preparing: 'border-blue-400',
+    ready: 'border-green-400'
+};
+
+async function loadKitchen() {
+    const res = await fetch('/api/orders');
+    const orders = await res.json();
+    // แสดงเฉพาะ pending + preparing + ready
+    const filtered = orders.filter(o => ['pending', 'preparing', 'ready'].includes(o.status));
+    const container = document.getElementById('kitchen-orders');
+
+    if (filtered.length === 0) {
+        container.innerHTML = '<p class="col-span-full text-center text-gray-500 py-20 text-xl">ไม่มีออเดอร์ในขณะนี้ 🎉</p>';
+        return;
+    }
+
+    container.innerHTML = filtered.map(o => `
+        <div class="bg-gray-800 rounded-xl border-l-4 ${statusBorder[o.status]} p-4">
+            <div class="flex items-center justify-between mb-2">
+                <div>
+                    <span class="text-2xl font-bold">#${o.id}</span>
+                    <span class="ml-2 text-lg text-orange-400">${o.table_name}</span>
+                </div>
+                <span class="text-sm px-2 py-1 rounded bg-gray-700">${statusLabel[o.status]} · ${o.created_at}</span>
+            </div>
+            <ul class="space-y-2 my-3">
+                ${o.items.map(i => `
+                    <li class="flex items-start gap-2">
+                        <span class="bg-orange-500 text-white text-sm font-bold w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0">${i.quantity}</span>
+                        <div>
+                            <span class="font-medium text-lg">${i.name}</span>
+                            ${i.note ? `<div class="text-yellow-400 text-sm">↳ ${i.note}</div>` : ''}
+                        </div>
+                    </li>
+                `).join('')}
+            </ul>
+            ${o.note ? `<p class="text-yellow-400 text-sm mb-3">📝 ${o.note}</p>` : ''}
+            <div class="flex gap-2">
+                ${o.status === 'pending' ? `
+                    <button onclick="setStatus(${o.id},'preparing')" class="flex-1 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium">
+                        เริ่มทำ
+                    </button>` : ''}
+                ${o.status === 'preparing' ? `
+                    <button onclick="setStatus(${o.id},'completed')" class="flex-1 py-2 bg-green-600 hover:bg-green-500 rounded-lg font-medium">
+                        เสิร์ฟแล้ว
+                    </button>` : ''}
+                ${o.status === 'ready' ? `
+                    <button onclick="setStatus(${o.id},'completed')" class="flex-1 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg font-medium">
+                        เสร็จสิ้น
+                    </button>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+async function setStatus(id, status) {
+    await fetch(`/api/orders/${id}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+    });
+    loadKitchen();
+}
+
+loadKitchen();
+setInterval(loadKitchen, 4000);
+</script>
+{% endblock %}

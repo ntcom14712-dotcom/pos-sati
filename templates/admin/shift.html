@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}เปิด/ปิดกะ - สติๆ{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex">
+    <aside class="w-64 bg-gray-900 text-white flex-shrink-0 hidden md:block relative">
+        <div class="p-5 border-b border-gray-700">
+            <h1 class="text-xl font-bold">🍽️ สติๆ</h1>
+        </div>
+        <nav class="p-3 space-y-1">
+            <a href="/admin" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📊 แดชบอร์ด</a>
+            <a href="/admin/orders" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🧾 ออเดอร์</a>
+            <a href="/admin/pos" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🛒 สั่งออเดอร์</a>
+            <a href="/kitchen" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🍳 หน้าครัว</a>
+            <a href="/admin/menu" data-admin-only class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📋 จัดการเมนู</a>
+            <a href="/admin/products" data-admin-only class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📦 สินค้าและหมวดหมู่</a>
+            <a href="/admin/stock" data-admin-only class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📊 สต็อก</a>
+            <a href="/admin/tables" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🪑 จัดการโต๊ะ</a>
+            <a href="/admin/printers" data-admin-only class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🖨️ เครื่องพิมพ์</a>
+            <a href="/admin/shift" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-orange-500 text-white">🕐 เปิด/ปิดกะ</a>
+            <a href="/admin/reports" data-admin-only class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📈 สถิติยอดขาย</a>
+            <a href="/admin/settings" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">⚙️ ตั้งค่า</a>
+        </nav>
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-700">
+            <div class="text-sm text-gray-300 mb-2">👤 {{ current_user.name if current_user else 'พนักงาน' }}</div>
+            <a href="/logout" class="block text-center text-sm bg-gray-800 hover:bg-gray-700 py-2 rounded-lg text-gray-300">ออกจากระบบ</a>
+        </div>
+    </aside>
+
+    <main class="flex-1 p-6">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6">🕐 เปิด / ปิดกะ</h1>
+
+        {% if current_shift %}
+        <!-- กะที่เปิดอยู่ -->
+        <div class="bg-green-50 border border-green-200 rounded-xl p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <span class="px-3 py-1 bg-green-500 text-white text-sm rounded-full font-medium">● กะเปิดอยู่</span>
+                    <p class="mt-2 text-gray-600">เปิดโดย: <strong>{{ current_shift.user.name }}</strong></p>
+                    <p class="text-gray-600">เวลาเปิด: {{ current_shift.opened_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                    <p class="text-gray-600">เงินทอนเริ่มต้น: ฿{{ "%.0f"|format(current_shift.opening_cash) }}</p>
+                </div>
+            </div>
+            <div class="border-t pt-4 mt-4">
+                <label class="text-sm text-gray-600">เงินทอนตอนปิดกะ (บาท)</label>
+                <input id="closing-cash" type="number" class="w-full max-w-xs border rounded-lg px-3 py-2 mt-1 mb-3" placeholder="0">
+                <label class="text-sm text-gray-600">หมายเหตุ (ถ้ามี)</label>
+                <input id="close-note" class="w-full max-w-xs border rounded-lg px-3 py-2 mt-1 mb-4" placeholder="ไม่บังคับ">
+                <button onclick="closeShift()" class="bg-red-500 hover:bg-red-600 text-white px-6 py-2.5 rounded-lg font-medium">
+                    ปิดกะ
+                </button>
+            </div>
+        </div>
+        {% else %}
+        <!-- เปิดกะใหม่ -->
+        <div class="bg-white border rounded-xl p-6 mb-6 max-w-md">
+            <h2 class="font-bold text-lg mb-4">เปิดกะใหม่</h2>
+            <label class="text-sm text-gray-600">เงินทอนเริ่มต้น (บาท)</label>
+            <input id="opening-cash" type="number" class="w-full border rounded-lg px-3 py-2 mt-1 mb-3" value="0" placeholder="0">
+            <label class="text-sm text-gray-600">หมายเหตุ</label>
+            <input id="open-note" class="w-full border rounded-lg px-3 py-2 mt-1 mb-4" placeholder="ไม่บังคับ">
+            <button onclick="openShift()" class="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2.5 rounded-lg font-medium w-full">
+                เปิดกะ
+            </button>
+        </div>
+        {% endif %}
+
+        <!-- ประวัติกะ -->
+        <h2 class="font-bold text-lg mb-3">ประวัติกะล่าสุด</h2>
+        <div class="bg-white rounded-xl border overflow-hidden">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="px-4 py-3">วันที่เปิด</th>
+                        <th class="px-4 py-3">พนักงาน</th>
+                        <th class="px-4 py-3">เงินเริ่ม</th>
+                        <th class="px-4 py-3">เงินปิด</th>
+                        <th class="px-4 py-3">คาดการณ์</th>
+                        <th class="px-4 py-3">สถานะ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in recent_shifts %}
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="px-4 py-3">{{ s.opened_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td class="px-4 py-3">{{ s.user.name }}</td>
+                        <td class="px-4 py-3">฿{{ "%.0f"|format(s.opening_cash) }}</td>
+                        <td class="px-4 py-3">{% if s.closing_cash is not none %}฿{{ "%.0f"|format(s.closing_cash) }}{% else %}-{% endif %}</td>
+                        <td class="px-4 py-3">{% if s.expected_cash is not none %}฿{{ "%.0f"|format(s.expected_cash) }}{% else %}-{% endif %}</td>
+                        <td class="px-4 py-3">
+                            {% if s.is_open %}
+                            <span class="text-green-600 font-medium">เปิดอยู่</span>
+                            {% else %}
+                            <span class="text-gray-500">ปิดแล้ว</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">ยังไม่มีประวัติกะ</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+fetch('/api/me').then(r=>r.json()).then(me=>{
+  if(!me.is_admin) document.querySelectorAll('[data-admin-only]').forEach(el=>el.classList.add('hidden'));
+}).catch(()=>{});
+</script>
+
+<script>
+async function openShift() {
+    const cash = document.getElementById('opening-cash').value || 0;
+    const note = document.getElementById('open-note').value || '';
+    const res = await fetch('/api/shift/open', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({opening_cash: cash, note})
+    });
+    const data = await res.json();
+    if (data.success) location.reload();
+    else alert(data.message);
+}
+
+async function closeShift() {
+    if (!confirm('ยืนยันปิดกะ?')) return;
+    const cash = document.getElementById('closing-cash').value || 0;
+    const note = document.getElementById('close-note').value || '';
+    const res = await fetch('/api/shift/close', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({closing_cash: cash, note})
+    });
+    const data = await res.json();
+    if (data.success) {
+        alert(`ปิดกะสำเร็จ\nยอดขาย: ฿${data.revenue.toFixed(0)}\nเงินที่ควรมี: ฿${data.expected_cash.toFixed(0)}\nเงินทอนจริง: ฿${data.closing_cash}`);
+        location.reload();
+    } else alert(data.message);
+}
+</script>
+{% endblock %}

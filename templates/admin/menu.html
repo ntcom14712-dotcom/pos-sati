@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block title %}จัดการเมนู - สติๆ{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex">
+    <aside class="w-64 bg-gray-900 text-white flex-shrink-0 hidden md:block relative">
+        <div class="p-5 border-b border-gray-700">
+            <h1 class="text-xl font-bold">🍽️ สติๆ</h1>
+        </div>
+        <nav class="p-3 space-y-1">
+            <a href="/admin" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📊 แดชบอร์ด</a>
+            <a href="/admin/orders" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🧾 ออเดอร์</a>
+            <a href="/admin/pos" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🛒 สั่งออเดอร์</a>
+            <a href="/kitchen" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🍳 หน้าครัว</a>
+            <a href="/admin/menu" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-orange-500 text-white">📋 จัดการเมนู</a>
+            <a href="/admin/products" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📦 สินค้าและหมวดหมู่</a>
+            <a href="/admin/stock" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📊 สต็อก</a>
+            <a href="/admin/tables" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🪑 จัดการโต๊ะ</a>
+            <a href="/admin/printers" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🖨️ เครื่องพิมพ์</a>
+                    <a href="/admin/shift" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">🕐 เปิด/ปิดกะ</a>
+            <a href="/admin/reports" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">📈 สถิติยอดขาย</a>
+            <a href="/admin/settings" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 text-gray-300">⚙️ ตั้งค่า</a>
+        </nav>
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-700">
+            <div class="text-sm text-gray-300 mb-2">👤 {{ current_user.name if current_user else 'พนักงาน' }}</div>
+            <a href="/logout" class="block text-center text-sm bg-gray-800 hover:bg-gray-700 py-2 rounded-lg text-gray-300">ออกจากระบบ</a>
+        </div>
+    </aside>
+
+    <main class="flex-1 p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">จัดการเมนู</h1>
+            <button onclick="openAddModal()" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium">
+                + เพิ่มเมนู
+            </button>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+            <table class="w-full text-left">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="px-4 py-3 text-sm font-medium text-gray-600">รูป</th>
+                        <th class="px-4 py-3 text-sm font-medium text-gray-600">ชื่อเมนู</th>
+                        <th class="px-4 py-3 text-sm font-medium text-gray-600">หมวดหมู่</th>
+                        <th class="px-4 py-3 text-sm font-medium text-gray-600">ราคาขาย</th>
+                        <th class="px-4 py-3 text-sm font-medium text-gray-600">ต้นทุน</th>
+                        <th class="px-4 py-3 text-sm font-medium text-gray-600">สถานะ</th>
+                        <th class="px-4 py-3 text-sm font-medium text-gray-600">จัดการ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr class="border-b hover:bg-gray-50" id="row-{{ item.id }}">
+                        <td class="px-4 py-3">
+                            {% if item.image_url %}
+                            <img src="{{ item.image_url }}" class="w-12 h-12 object-cover rounded-lg" alt="">
+                            {% else %}
+                            <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs">ไม่มีรูป</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="font-medium">{{ item.name }}</div>
+                            {% if item.description %}<div class="text-xs text-gray-500">{{ item.description }}</div>{% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm">{{ item.category.name if item.category else '-' }}</td>
+                        <td class="px-4 py-3 font-medium">฿{{ "%.0f"|format(item.price) }}</td>
+                        <td class="px-4 py-3 text-gray-500">฿{{ "%.0f"|format(item.cost_price or 0) }}</td>
+                        <td class="px-4 py-3">
+                            {% if item.is_available %}
+                            <span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">เปิดขาย</span>
+                            {% else %}
+                            <span class="px-2 py-1 bg-gray-100 text-gray-500 text-xs rounded-full">ปิดขาย</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3">
+                            <button onclick='editItem({{ item.id }}, {{ item.name|tojson }}, {{ (item.description or "")|tojson }}, {{ item.price }}, {{ item.cost_price or 0 }}, {{ item.category_id or "null" }}, {{ "true" if item.is_available else "false" }}, {{ (item.image_url or "")|tojson }}, {{ item.stock_qty if item.stock_qty is not none else "null" }})' class="text-blue-600 hover:underline text-sm mr-3">แก้ไข</button>
+                            <button onclick="deleteItem({{ item.id }})" class="text-red-600 hover:underline text-sm">ลบ</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<!-- Modal -->
+<div id="modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+        <h2 id="modal-title" class="text-lg font-bold mb-4">เพิ่มเมนู</h2>
+        <input type="hidden" id="edit-id">
+        <div class="space-y-3">
+            <div>
+                <label class="text-sm text-gray-600">ชื่อเมนู</label>
+                <input id="f-name" class="w-full border rounded-lg px-3 py-2 mt-1" placeholder="เช่น ผัดกะเพรา">
+            </div>
+            <div>
+                <label class="text-sm text-gray-600">รายละเอียด</label>
+                <input id="f-desc" class="w-full border rounded-lg px-3 py-2 mt-1" placeholder="ไม่บังคับ">
+            </div>
+            <div>
+                <label class="text-sm text-gray-600">ราคาขาย (บาท)</label>
+                <input id="f-price" type="number" class="w-full border rounded-lg px-3 py-2 mt-1" placeholder="60">
+            </div>
+            <div id="cost-field">
+                <label class="text-sm text-gray-600">ต้นทุน (บาท) <span class="text-gray-400">- เฉพาะ admin</span></label>
+                <input id="f-cost" type="number" class="w-full border rounded-lg px-3 py-2 mt-1" placeholder="0">
+            </div>
+            <div>
+                <label class="text-sm text-gray-600">หมวดหมู่</label>
+                <select id="f-cat" class="w-full border rounded-lg px-3 py-2 mt-1" onchange="toggleStockField()">
+                    <option value="">-- ไม่ระบุ --</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}">{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="text-sm text-gray-600">รูปอาหาร</label>
+                <input type="hidden" id="f-image">
+                <div class="flex items-center gap-3 mt-1">
+                    <img id="f-image-preview" src="" class="w-16 h-16 object-cover rounded-lg hidden border">
+                    <input type="file" id="f-image-file" accept="image/*" class="text-sm" onchange="uploadImage(this)">
+                </div>
+                <p class="text-xs text-gray-400 mt-1">jpg png webp · แนะนำสี่เหลี่ยม</p>
+            </div>
+            <div id="stock-field" class="hidden">
+                <label class="text-sm text-gray-600">สต็อก (จำนวน)</label>
+                <input id="f-stock" type="number" min="0" class="w-full border rounded-lg px-3 py-2 mt-1" placeholder="จำนวนในสต็อก">
+                <p class="text-xs text-gray-400 mt-1">เฉพาะ อาหารทานเล่น / มิกซ์เซอร์ / เบียร์ / เหล้า — เหลือน้อยกว่า 2 จะแจ้งเตือน</p>
+            </div>
+        </div>
+        <div class="flex gap-2 mt-5">
+            <button onclick="closeModal()" class="flex-1 py-2 border rounded-lg hover:bg-gray-50">ยกเลิก</button>
+            <button onclick="saveItem()" class="flex-1 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600">บันทึก</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleStockField() {
+    const sel = document.getElementById('f-cat');
+    const name = sel.options[sel.selectedIndex]?.text || '';
+    const tracked = ['อาหารทานเล่น','มิกซ์เซอร์','เบียร์','เหล้า'].includes(name);
+    document.getElementById('stock-field').classList.toggle('hidden', !tracked);
+}
+function openAddModal() {
+    document.getElementById('modal-title').textContent = 'เพิ่มเมนู';
+    document.getElementById('edit-id').value = '';
+    document.getElementById('f-name').value = '';
+    document.getElementById('f-desc').value = '';
+    document.getElementById('f-price').value = '';
+    document.getElementById('f-cost').value = '';
+    document.getElementById('f-cat').value = '';
+    document.getElementById('f-stock').value = '';
+    document.getElementById('stock-field').classList.add('hidden');
+    document.getElementById('f-image').value = '';
+    document.getElementById('f-image-preview').classList.add('hidden');
+    document.getElementById('f-image-file').value = '';
+    document.getElementById('f-available').checked = true;
+    document.getElementById('modal').classList.remove('hidden');
+    document.getElementById('modal').classList.add('flex');
+}
+
+async function uploadImage(input) {
+    if (!input.files || !input.files[0]) return;
+    const fd = new FormData();
+    fd.append('file', input.files[0]);
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.success) {
+        document.getElementById('f-image').value = data.url;
+        const prev = document.getElementById('f-image-preview');
+        prev.src = data.url;
+        prev.classList.remove('hidden');
+    } else alert(data.message || 'อัปโหลดไม่สำเร็จ');
+}
+
+function editItem(id, name, desc, price, cost, catId, available, imageUrl, stockQty) {
+    document.getElementById('modal-title').textContent = 'แก้ไขเมนู';
+    document.getElementById('edit-id').value = id;
+    document.getElementById('f-name').value = name;
+    document.getElementById('f-desc').value = desc;
+    document.getElementById('f-price').value = price;
+    document.getElementById('f-cost').value = cost;
+    document.getElementById('f-cat').value = catId || '';
+    document.getElementById('f-available').checked = available;
+    document.getElementById('f-image').value = imageUrl || '';
+    const prev = document.getElementById('f-image-preview');
+    if (imageUrl) { prev.src = imageUrl; prev.classList.remove('hidden'); }
+    else { prev.classList.add('hidden'); }
+    document.getElementById('f-image-file').value = '';
+    toggleStockField();
+    const stockInput = document.getElementById('f-stock');
+    if (stockInput) stockInput.value = (stockQty !== undefined && stockQty !== null) ? stockQty : '';
+    document.getElementById('modal').classList.remove('hidden');
+    document.getElementById('modal').classList.add('flex');
+}
+
+function closeModal() {
+    document.getElementById('modal').classList.add('hidden');
+    document.getElementById('modal').classList.remove('flex');
+}
+
+async function saveItem() {
+    const id = document.getElementById('edit-id').value;
+    const payload = {
+        name: document.getElementById('f-name').value,
+        description: document.getElementById('f-desc').value,
+        price: document.getElementById('f-price').value,
+        cost_price: document.getElementById('f-cost').value || 0,
+        category_id: document.getElementById('f-cat').value || null,
+        is_available: document.getElementById('f-available').checked,
+        image_url: document.getElementById('f-image').value,
+        stock_qty: document.getElementById('stock-field').classList.contains('hidden') ? null : (document.getElementById('f-stock').value || 0)
+    };
+    if (!payload.name || !payload.price) {
+        alert('กรุณากรอกชื่อและราคา');
+        return;
+    }
+    const url = id ? `/api/menu/${id}` : '/api/menu';
+    const method = id ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    if (res.ok) location.reload();
+    else alert('เกิดข้อผิดพลาด');
+}
+
+async function deleteItem(id) {
+    if (!confirm('ต้องการลบเมนูนี้ใช่ไหม?')) return;
+    const res = await fetch(`/api/menu/${id}`, { method: 'DELETE' });
+    if (res.ok) document.getElementById(`row-${id}`).remove();
+}
+</script>
+{% endblock %}

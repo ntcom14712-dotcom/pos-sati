@@ -1,0 +1,25 @@
+{
+  "name": "สติๆ - ระบบสั่งอาหาร",
+  "short_name": "สติๆ",
+  "description": "ระบบสั่งอาหารผ่าน QR Code",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f97316",
+  "theme_color": "#f97316",
+  "orientation": "portrait-primary",
+  "lang": "th",
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

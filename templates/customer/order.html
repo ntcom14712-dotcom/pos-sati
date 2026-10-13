@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}สั่งอาหาร - สติๆ | {{ table.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto min-h-screen bg-white shadow-lg">
+    <!-- Header -->
+    <div class="sticky top-0 z-20 bg-orange-500 text-white px-4 py-3 shadow">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-lg font-bold">🍽️ สั่งอาหาร</h1>
+                <p class="text-sm opacity-90">{{ table.name }}</p>
+            </div>
+            <button onclick="toggleCart()" class="relative bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-full text-sm font-medium">
+                🛒 ตะกร้า
+                <span id="cart-count" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center hidden">0</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Categories -->
+    <div class="sticky top-[60px] z-10 bg-white border-b overflow-x-auto">
+        <div class="flex gap-2 px-3 py-2">
+            <button onclick="filterCategory('all')" class="cat-btn active whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium bg-orange-500 text-white">
+                ทั้งหมด
+            </button>
+            {% for cat in categories %}
+            <button onclick="filterCategory({{ cat.id }})" class="cat-btn whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200" data-cat="{{ cat.id }}">
+                {{ cat.name }}
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Menu Items -->
+    <div class="p-3 space-y-3 pb-32" id="menu-list">
+        {% for item in items %}
+        <div class="menu-item flex gap-3 bg-white border rounded-xl p-3 shadow-sm" data-cat="{{ item.category_id or 0 }}">
+            <div class="w-20 h-20 rounded-lg flex-shrink-0 overflow-hidden bg-orange-50 flex items-center justify-center text-3xl">
+                {% if item.image_url %}
+                <img src="{{ item.image_url }}" alt="{{ item.name }}" class="w-full h-full object-cover">
+                {% elif item.category and item.category.image_url %}
+                <img src="{{ item.category.image_url }}" alt="" class="w-full h-full object-cover">
+                {% elif item.category and item.category.name == 'เครื่องดื่ม' %}🥤
+                {% elif item.category and item.category.name == 'ของหวาน' %}🍦
+                {% else %}🍽️{% endif %}
+            </div>
+            <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-gray-800">{{ item.name }}</h3>
+                {% if item.description %}
+                <p class="text-xs text-gray-500 mt-0.5">{{ item.description }}</p>
+                {% endif %}
+                <div class="flex items-center justify-between mt-2">
+                    <span class="text-orange-600 font-bold">฿{{ "%.0f"|format(item.price) }}</span>
+                    <div class="flex items-center gap-2">
+                        <button onclick="changeQty({{ item.id }}, -1)" class="w-8 h-8 rounded-full bg-gray-100 text-gray-600 font-bold text-lg leading-none">−</button>
+                        <span id="qty-{{ item.id }}" class="w-6 text-center font-medium">0</span>
+                        <button onclick="changeQty({{ item.id }}, 1)" class="w-8 h-8 rounded-full bg-orange-500 text-white font-bold text-lg leading-none">+</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Cart Bottom Sheet -->
+    <div id="cart-sheet" class="fixed inset-x-0 bottom-0 z-30 transform translate-y-full transition-transform duration-300 max-w-lg mx-auto">
+        <div class="bg-white rounded-t-2xl shadow-2xl border-t">
+            <div class="p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="font-bold text-lg">🛒 ตะกร้าของคุณ</h2>
+                    <button onclick="toggleCart()" class="text-gray-400 text-2xl leading-none">&times;</button>
+                </div>
+                <div id="cart-items" class="space-y-2 max-h-60 overflow-y-auto mb-3">
+                    <!-- filled by JS -->
+                </div>
+                <div class="border-t pt-3">
+                    <textarea id="order-note" placeholder="หมายเหตุเพิ่มเติม (เช่น ไม่ใส่ผักชี)" class="w-full border rounded-lg p-2 text-sm mb-3" rows="2"></textarea>
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="font-medium">ยอดรวม</span>
+                        <span id="cart-total" class="text-xl font-bold text-orange-600">฿0</span>
+                    </div>
+                    <button onclick="submitOrder()" id="btn-submit" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl text-lg disabled:opacity-50">
+                        ยืนยันการสั่งอาหาร
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="success-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50">
+        <div class="bg-white rounded-2xl p-6 mx-4 max-w-sm text-center">
+            <div class="text-5xl mb-3">✅</div>
+            <h2 class="text-xl font-bold mb-2">สั่งอาหารสำเร็จ!</h2>
+            <p class="text-gray-600 mb-1">หมายเลขออเดอร์: <span id="order-id" class="font-bold"></span></p>
+            <p class="text-gray-600 mb-4">ยอดรวม: <span id="order-total" class="font-bold text-orange-600"></span></p>
+            <button onclick="location.reload()" class="w-full bg-orange-500 text-white py-2.5 rounded-xl font-medium">
+                สั่งเพิ่ม
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const tableCode = "{{ table.code }}";
+    const menuData = {
+        {% for item in items %}
+        {{ item.id }}: { id: {{ item.id }}, name: "{{ item.name }}", price: {{ item.price }} },
+        {% endfor %}
+    };
+    let cart = {}; // { itemId: quantity }
+
+    function changeQty(id, delta) {
+        cart[id] = (cart[id] || 0) + delta;
+        if (cart[id] <= 0) delete cart[id];
+        document.getElementById(`qty-${id}`).textContent = cart[id] || 0;
+        updateCartUI();
+    }
+
+    function updateCartUI() {
+        const count = Object.values(cart).reduce((a, b) => a + b, 0);
+        const countEl = document.getElementById('cart-count');
+        if (count > 0) {
+            countEl.textContent = count;
+            countEl.classList.remove('hidden');
+        } else {
+            countEl.classList.add('hidden');
+        }
+
+        // Cart items
+        const container = document.getElementById('cart-items');
+        container.innerHTML = '';
+        let total = 0;
+        for (const [id, qty] of Object.entries(cart)) {
+            const item = menuData[id];
+            total += item.price * qty;
+            container.innerHTML += `
+                <div class="flex justify-between items-center text-sm">
+                    <span>${item.name} × ${qty}</span>
+                    <span class="font-medium">฿${(item.price * qty).toFixed(0)}</span>
+                </div>`;
+        }
+        document.getElementById('cart-total').textContent = `฿${total.toFixed(0)}`;
+        document.getElementById('btn-submit').disabled = count === 0;
+    }
+
+    function toggleCart() {
+        const sheet = document.getElementById('cart-sheet');
+        sheet.classList.toggle('translate-y-full');
+    }
+
+    function filterCategory(catId) {
+        document.querySelectorAll('.cat-btn').forEach(b => {
+            b.classList.remove('bg-orange-500', 'text-white');
+            b.classList.add('bg-gray-100', 'text-gray-700');
+        });
+        event.target.classList.add('bg-orange-500', 'text-white');
+        event.target.classList.remove('bg-gray-100', 'text-gray-700');
+
+        document.querySelectorAll('.menu-item').forEach(el => {
+            if (catId === 'all' || el.dataset.cat == catId) {
+                el.style.display = 'flex';
+            } else {
+                el.style.display = 'none';
+            }
+        });
+    }
+
+    async function submitOrder() {
+        const items = Object.entries(cart).map(([id, qty]) => ({
+            id: parseInt(id),
+            quantity: qty
+        }));
+        const note = document.getElementById('order-note').value;
+
+        const btn = document.getElementById('btn-submit');
+        btn.disabled = true;
+        btn.textContent = 'กำลังส่ง...';
+
+        try {
+            const res = await fetch('/api/order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ table_code: tableCode, items, note })
+            });
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById('order-id').textContent = '#' + data.order_id;
+                document.getElementById('order-total').textContent = '฿' + data.total.toFixed(0);
+                document.getElementById('success-modal').classList.remove('hidden');
+                document.getElementById('success-modal').classList.add('flex');
+            } else {
+                alert(data.message || 'เกิดข้อผิดพลาด');
+                btn.disabled = false;
+                btn.textContent = 'ยืนยันการสั่งอาหาร';
+            }
+        } catch (e) {
+            alert('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+            btn.disabled = false;
+            btn.textContent = 'ยืนยันการสั่งอาหาร';
+        }
+    }
+</script>
+{% endblock %}
