@@ -1,4 +1,4 @@
-from from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
@@ -1612,4 +1612,3 @@ if __name__ == '__main__':
     print("💰 หน้าแคชเชียร์    : http://127.0.0.1:5000/admin/orders")
     print("="*50 + "\n")
     app.run(debug=True, host='0.0.0.0', port=5000)
-
