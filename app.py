@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
+from from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
@@ -11,7 +11,12 @@ import base64
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///pos.db'
+
+# ใช้ DATABASE_URL ถ้ามี (สำหรับ Render Postgres) ไม่งั้นใช้ SQLite
+database_url = os.environ.get('DATABASE_URL', '')
+if database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///pos.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'pos-qr-secret-key-change-in-production')
 
@@ -276,8 +281,6 @@ def deduct_stock(order):
 
 def generate_qr_code(table_code: str) -> str:
     """สร้าง QR Code เป็น base64 data URL"""
-    # ใช้ BASE_URL จาก environment ถ้ามี (สำหรับ production)
-    # ถ้าไม่มี ให้ใช้ request.host ตอน runtime
     base = os.environ.get('BASE_URL', '').rstrip('/')
     if not base:
         try:
@@ -1609,3 +1612,4 @@ if __name__ == '__main__':
     print("💰 หน้าแคชเชียร์    : http://127.0.0.1:5000/admin/orders")
     print("="*50 + "\n")
     app.run(debug=True, host='0.0.0.0', port=5000)
+
